@@ -1223,11 +1223,39 @@ var PIN_KEY='djf_pin';
 function getPin(){return localStorage.getItem(PIN_KEY);}
 function savePin(p){localStorage.setItem(PIN_KEY,p);}
 
+// ── MIGRAÇÃO: soma crédito/débito PDV existentes ao banco Stone ───────────────
+function migrarVendasStone(){
+  if(lsGet('mig_stone_v1',false))return; // já executou
+  var stoneBanco=(state.bancos||[]).find(function(b){return b.nome&&b.nome.toLowerCase().indexOf('stone')!==-1;});
+  if(!stoneBanco)return; // Stone não cadastrado ainda — tenta na próxima sessão
+  var soma=0;
+  var receitasAtualizadas=(state.receitas||[]).map(function(r){
+    var isCreditoDebito=r.id&&(r.id.indexOf('_credito')!==-1||r.id.indexOf('_debito')!==-1);
+    if(r.venda_id&&(!r.banco||r.banco==='')&&isCreditoDebito){
+      soma=Math.round((soma+(r.valor||0))*100)/100;
+      return Object.assign({},r,{banco:stoneBanco.id});
+    }
+    return r;
+  });
+  lsSet('mig_stone_v1',true); // marca antes de salvar para não repetir em caso de erro
+  if(soma===0)return;
+  var novosBancos=(state.bancos||[]).map(function(b){
+    return b.id===stoneBanco.id?Object.assign({},b,{saldo:Math.round(((b.saldo||0)+soma)*100)/100}):b;
+  });
+  lsSet('receitas',receitasAtualizadas);
+  lsSet('bancos',novosBancos);
+  setState({receitas:receitasAtualizadas,bancos:novosBancos});
+  scheduleSave();
+  showToast('Stone atualizado: +'+fmtMoney(soma)+' de crédito/débito das vendas PDV','info',5000);
+}
+
 function initApp(){
   document.getElementById('app').style.display='';
   document.getElementById('pin-overlay').style.display='none';
   render();
-  loadFromFirebase().then(function(){runRecorrencia();}).catch(function(){runRecorrencia();});
+  loadFromFirebase()
+    .then(function(){runRecorrencia();migrarVendasStone();})
+    .catch(function(){runRecorrencia();migrarVendasStone();});
 }
 
 function lockApp(){
