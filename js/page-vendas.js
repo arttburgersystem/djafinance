@@ -112,14 +112,28 @@ function renderVendas(){
     el('span',{style:{width:'100px',textAlign:'right'}},'Líquido'),
   ]);
 
+  var editBanner=atual?el('div',{style:{
+    display:'flex',alignItems:'center',gap:'10px',
+    background:'var(--gold-dim)',border:'1px solid var(--gold)',
+    borderRadius:'var(--radius-sm)',padding:'8px 14px',marginBottom:'12px',
+  }},[
+    el('span',{style:{fontSize:'14px'}},'✏️'),
+    el('div',{},[
+      el('div',{style:{fontSize:'12px',fontWeight:'700',color:'var(--gold)'}},'Modo edição — '+fmtDate(dataSel)),
+      el('div',{style:{fontSize:'11px',color:'var(--text2)'}},'Corrija os valores e clique em "Atualizar lançamento" para salvar.'),
+    ]),
+  ]):null;
+
   var formCard=div('card',[
+    editBanner,
     el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}},[
       div('card-title','PDV — Formas de Pagamento'),
       el('span',{style:{fontSize:'11px',color:'var(--text3)'}},'Bruto → desconto da taxa → líquido'),
     ]),
     colHeader,
     ...PAGS.map(inputRow),
-  ]);
+  ].filter(Boolean));
+  formCard.id='vendas-form-card';
 
   // ── RESUMO ────────────────────────────────────────────────────────────────
   var resumo=el('div',{style:{
@@ -252,11 +266,24 @@ function renderVendas(){
       .map(function(k){return LABEL_SHORT[k]||k;})
       .join(' · ')||'—';
 
+    var editBtn=el('button',{
+      class:'btn-icon edit',
+      title:'Editar lançamento',
+      style:{opacity: isAtivo?'1':'0.5'},
+      onclick:function(e){
+        e.stopPropagation();
+        setState({vendasData:v.data});
+        setTimeout(function(){
+          var el=document.getElementById('vendas-form-card');
+          if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+        },100);
+      }
+    },'✏️');
+
     return el('tr',{
-      style:{background:isAtivo?'var(--gold-dim)':'',cursor:'pointer'},
+      style:{background:isAtivo?'var(--gold-dim)':''},
       onmouseenter:function(e){if(!isAtivo)e.currentTarget.style.background='var(--bg3)';},
       onmouseleave:function(e){if(!isAtivo)e.currentTarget.style.background='';},
-      onclick:function(){setState({vendasData:v.data});}
     },[
       el('td',{style:{padding:'8px 10px',fontSize:'12px',fontWeight:isAtivo?'700':'400'}},[
         fmtDate(v.data),
@@ -266,13 +293,14 @@ function renderVendas(){
       el('td',{style:{padding:'8px 10px',fontSize:'12px',textAlign:'right'}},fmtMoney(t.bruto)),
       el('td',{style:{padding:'8px 10px',fontSize:'12px',textAlign:'right',color:'var(--red)'}},t.taxas>0?'-'+fmtMoney(t.taxas):'—'),
       el('td',{style:{padding:'8px 10px',fontSize:'13px',fontWeight:'700',textAlign:'right',color:'var(--green)'}},fmtMoney(t.liq)),
+      el('td',{style:{padding:'8px 6px',textAlign:'center'}},editBtn),
     ]);
   });
 
   var histCard=div('card',[
     el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}},[
       div('card-title','Histórico de lançamentos'),
-      el('span',{style:{fontSize:'11px',color:'var(--text3)'}},'Clique em um dia para editar'),
+      el('span',{style:{fontSize:'11px',color:'var(--text3)'}},'Clique em ✏️ para editar'),
     ]),
     historico.length===0
       ?div('empty',[
@@ -288,6 +316,7 @@ function renderVendas(){
               el('th',{style:{padding:'7px 10px',textAlign:'right',fontSize:'11px',color:'var(--text3)',fontWeight:'700',textTransform:'uppercase'}},'Bruto'),
               el('th',{style:{padding:'7px 10px',textAlign:'right',fontSize:'11px',color:'var(--text3)',fontWeight:'700',textTransform:'uppercase'}},'Taxas'),
               el('th',{style:{padding:'7px 10px',textAlign:'right',fontSize:'11px',color:'var(--text3)',fontWeight:'700',textTransform:'uppercase'}},'Líquido'),
+              el('th',{style:{padding:'7px 10px',textAlign:'center',fontSize:'11px',color:'var(--text3)',fontWeight:'700',textTransform:'uppercase'}},''),
             ])]),
             el('tbody',{},histRows),
           ]),
