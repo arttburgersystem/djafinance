@@ -188,7 +188,7 @@ function getCatKey(profile, tipo){
   return profile+'_'+tipo;
 }
 var MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-var TAXAS_DEFAULT={ifood:30,rappi:27,food99:27,delivery:0,credito:2.5,debito:1.2,pix:0,dinheiro:0,vale:3,outros:0};
+var TAXAS_DEFAULT={dinheiro:0,pix:0,credito:2.5,debito:1.2,notinha:0,ifood_online:12,yooga:0};
 
 var BANCOS_ARTT_DEFAULT=[
   {id:'banco_stone',     nome:'Stone',        saldo:0, cor:'#00a86b', profile:'artt'},
@@ -345,20 +345,13 @@ function saveVenda(v){
   var vendas=(state.vendas||[]);
   var existe=vendas.find(function(x){return x.id===v.id;});
   var novasVendas=existe?vendas.map(function(x){return x.id===v.id?v:x;}):vendas.concat([v]);
-  var APPS_MAP={ifood:'iFood',rappi:'Rappi',food99:'99Food',delivery:'Delivery Próprio'};
-  var PDV_LABEL={dinheiro:'PDV Dinheiro',pix:'PDV Pix',debito:'PDV Débito',credito:'PDV Crédito',vale:'PDV Vale Alim.',outros:'PDV Outros'};
+  var PDV_LABEL={dinheiro:'Dinheiro',pix:'Pix',credito:'Cartão Crédito',debito:'Cartão Débito',notinha:'Notinha Funcionários',ifood_online:'iFood Online',yooga:'Yooga Online'};
   var recGeradas=[];
-  Object.keys(v.apps||{}).forEach(function(k){
-    var bruto=v.apps[k]||0;if(!bruto)return;
-    var taxa=(taxas[k]||0)/100;
-    var liquido=Math.round(bruto*(1-taxa)*100)/100;
-    recGeradas.push({id:'rec_vnd_'+v.data+'_'+k,descricao:(APPS_MAP[k]||k)+' — '+fmtDate(v.data),valor:liquido,data:v.data,categoria:APPS_MAP[k]||k,profile:'artt',banco:'',notas:'Bruto '+fmtMoney(bruto)+' | Taxa '+(taxas[k]||0)+'%',venda_id:v.id});
-  });
   Object.keys(v.pdv||{}).forEach(function(k){
     var bruto=v.pdv[k]||0;if(!bruto)return;
     var taxa=(taxas[k]||0)/100;
     var liquido=Math.round(bruto*(1-taxa)*100)/100;
-    recGeradas.push({id:'rec_vnd_'+v.data+'_pdv_'+k,descricao:(PDV_LABEL[k]||k)+' — '+fmtDate(v.data),valor:liquido,data:v.data,categoria:'Vendas PDV',profile:'artt',banco:'',notas:'Bruto '+fmtMoney(bruto)+' | Taxa '+(taxas[k]||0)+'%',venda_id:v.id});
+    recGeradas.push({id:'rec_vnd_'+v.data+'_'+k,descricao:(PDV_LABEL[k]||k)+' — '+fmtDate(v.data),valor:liquido,data:v.data,categoria:'Vendas PDV',profile:'artt',banco:'',notas:'Bruto '+fmtMoney(bruto)+' | Taxa '+(taxas[k]||0)+'%',venda_id:v.id});
   });
   var receitas=(state.receitas||[]).filter(function(r){return r.venda_id!==v.id;}).concat(recGeradas);
   lsSet('vendas',novasVendas);lsSet('receitas',receitas);
