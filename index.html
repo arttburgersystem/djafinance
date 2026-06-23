@@ -220,6 +220,7 @@ var state={
   emprestimos: lsGet('emprestimos',[]),
   fornecedores: lsGet('fornecedores',[]),
   funcionarios: lsGet('funcionarios',[]),
+  tarefas: lsGet('tarefas',[]),
   orcamentos: lsGet('orcamentos',[]),
   cmv: lsGet('cmv',{artt:30,pessoal:0}),
   catManager: null,
@@ -235,6 +236,8 @@ var state={
   abaterModal: null,
   fornecedorModal: null,
   funcionarioModal: null,
+  tarefaModal: null,
+  concluirModal: null,
   buscaModal: false,
   buscaBusca: '',
   receitasMes: null,
@@ -287,7 +290,7 @@ function fbPut(path,data){
 
 function loadFromFirebase(){
   setState({syncStatus:'syncing'});
-  return Promise.all([fbGet('/contas'),fbGet('/metas'),fbGet('/receitas'),fbGet('/bancos'),fbGet('/transferencias'),fbGet('/vendas'),fbGet('/emprestimos'),fbGet('/fornecedores'),fbGet('/funcionarios')])
+  return Promise.all([fbGet('/contas'),fbGet('/metas'),fbGet('/receitas'),fbGet('/bancos'),fbGet('/transferencias'),fbGet('/vendas'),fbGet('/emprestimos'),fbGet('/fornecedores'),fbGet('/funcionarios'),fbGet('/tarefas')])
     .then(function(results){
       var contas=objToArr(results[0]);
       var metas=objToArr(results[1]);
@@ -299,14 +302,15 @@ function loadFromFirebase(){
       var emprestimos=objToArr(results[6]);
       var fornecedores=objToArr(results[7]);
       var funcionarios=objToArr(results[8]);
-      lsSet('contas',contas);lsSet('metas',metas);lsSet('receitas',receitas);lsSet('bancos',bancos);lsSet('transferencias',transferencias);lsSet('vendas',vendas);lsSet('emprestimos',emprestimos);lsSet('fornecedores',fornecedores);lsSet('funcionarios',funcionarios);
-      setState({contas:contas,metas:metas,receitas:receitas,bancos:bancos,transferencias:transferencias,vendas:vendas,emprestimos:emprestimos,fornecedores:fornecedores,funcionarios:funcionarios,syncStatus:'ok'});
+      var tarefas=objToArr(results[9]);
+      lsSet('contas',contas);lsSet('metas',metas);lsSet('receitas',receitas);lsSet('bancos',bancos);lsSet('transferencias',transferencias);lsSet('vendas',vendas);lsSet('emprestimos',emprestimos);lsSet('fornecedores',fornecedores);lsSet('funcionarios',funcionarios);lsSet('tarefas',tarefas);
+      setState({contas:contas,metas:metas,receitas:receitas,bancos:bancos,transferencias:transferencias,vendas:vendas,emprestimos:emprestimos,fornecedores:fornecedores,funcionarios:funcionarios,tarefas:tarefas,syncStatus:'ok'});
     })
     .catch(function(e){
       console.error(e);
       setState({syncStatus:'error'});
       showToast('Erro ao conectar ao Firebase. Usando dados locais.','error');
-      setState({contas:lsGet('contas',[]),metas:lsGet('metas',[]),receitas:lsGet('receitas',[]),vendas:lsGet('vendas',[]),emprestimos:lsGet('emprestimos',[]),fornecedores:lsGet('fornecedores',[]),funcionarios:lsGet('funcionarios',[])});
+      setState({contas:lsGet('contas',[]),metas:lsGet('metas',[]),receitas:lsGet('receitas',[]),vendas:lsGet('vendas',[]),emprestimos:lsGet('emprestimos',[]),fornecedores:lsGet('fornecedores',[]),funcionarios:lsGet('funcionarios',[]),tarefas:lsGet('tarefas',[])});
     });
 }
 
@@ -315,7 +319,7 @@ function scheduleSave(){
   clearTimeout(syncTimer);
   syncTimer=setTimeout(function(){
     setState({syncStatus:'syncing'});
-    lsSet('contas',state.contas);lsSet('metas',state.metas);lsSet('receitas',state.receitas);lsSet('bancos',state.bancos);lsSet('transferencias',state.transferencias);lsSet('vendas',state.vendas||[]);lsSet('emprestimos',state.emprestimos||[]);lsSet('fornecedores',state.fornecedores||[]);lsSet('funcionarios',state.funcionarios||[]);
+    lsSet('contas',state.contas);lsSet('metas',state.metas);lsSet('receitas',state.receitas);lsSet('bancos',state.bancos);lsSet('transferencias',state.transferencias);lsSet('vendas',state.vendas||[]);lsSet('emprestimos',state.emprestimos||[]);lsSet('fornecedores',state.fornecedores||[]);lsSet('funcionarios',state.funcionarios||[]);lsSet('tarefas',state.tarefas||[]);
     Promise.all([
       fbPut('/contas',arrToObj(state.contas)),
       fbPut('/metas',arrToObj(state.metas)),
@@ -326,6 +330,7 @@ function scheduleSave(){
       fbPut('/emprestimos',arrToObj(state.emprestimos||[])),
       fbPut('/fornecedores',arrToObj(state.fornecedores||[])),
       fbPut('/funcionarios',arrToObj(state.funcionarios||[])),
+      fbPut('/tarefas',arrToObj(state.tarefas||[])),
     ]).then(function(){setState({syncStatus:'ok'});})
       .catch(function(e){console.error(e);setState({syncStatus:'error'});showToast('Erro ao salvar no Firebase','error');});
   },1500);
@@ -532,6 +537,7 @@ function renderSidebar(){
     {id:'fornecedores',label:'Fornecedores',icon:'🏪',section:'financeiro'},
     {id:'funcionarios',label:'Funcionários',icon:'👥',section:'financeiro'},
     {id:'fluxo',label:'Fluxo de caixa',icon:'📈',section:'financeiro'},
+    {id:'tarefas',label:'Tarefas & Agenda',icon:'✅',section:'planejamento'},
     {id:'orcamento',label:'Orçamento',icon:'💰',section:'planejamento'},
     {id:'planejamento',label:'Metas',icon:'🎯',section:'planejamento'},
     {id:'alertas',label:'Alertas',icon:'🔔',section:'planejamento'},
@@ -741,32 +747,140 @@ function renderPagar(){
 
 // ── CONTAS A RECEBER ──────────────────────────────────────────────────────────
 function renderReceber(){
-  var items=state.contas.filter(function(c){return c.tipo==='receber'&&c.profile===state.profile;});
+  var pf=state.profile;
+  var items=state.contas.filter(function(c){return c.tipo==='receber'&&c.profile===pf;});
   var busca=state.busca.receber||'';
   var filtro=state.filtro.receber||'todos';
+  var hoje=today();
+
+  var totalPrevisto=items.filter(function(c){return c.status!=='recebido';}).reduce(function(s,c){return s+(c.valor||0);},0);
+  var recebidoMes=items.filter(function(c){
+    return c.status==='recebido'&&c.vencimento&&c.vencimento.slice(0,7)===hoje.slice(0,7);
+  }).reduce(function(s,c){return s+(c.valor||0);},0);
+  var atrasados=items.filter(function(c){return c.status!=='recebido'&&c.vencimento&&c.vencimento<hoje;});
+  var totalAtrasado=atrasados.reduce(function(s,c){return s+(c.valor||0);},0);
+  var prox7=items.filter(function(c){
+    if(c.status==='recebido')return false;
+    var d=diasRestantes(c.vencimento);
+    return d!==null&&d>=0&&d<=7;
+  }).reduce(function(s,c){return s+(c.valor||0);},0);
+
+  function marcarRecebido(c){
+    var novasConta=state.contas.map(function(x){return x.id===c.id?Object.assign({},c,{status:'recebido'}):x;});
+    var novosBancos=state.bancos||[];
+    if(c.banco&&c.status!=='recebido'){
+      novosBancos=novosBancos.map(function(b){
+        return b.id===c.banco?Object.assign({},b,{saldo:Math.round(((b.saldo||0)+(c.valor||0))*100)/100}):b;
+      });
+    }
+    lsSet('contas',novasConta);lsSet('bancos',novosBancos);
+    setState({contas:novasConta,bancos:novosBancos});
+    scheduleSave();showToast('Marcado como recebido!');
+  }
+
+  var q=busca.toLowerCase();
   var filtrados=items.filter(function(c){
-    var mb=c.descricao.toLowerCase().includes(busca.toLowerCase())||c.categoria.toLowerCase().includes(busca.toLowerCase());
+    var mb=!busca||
+      (c.descricao&&c.descricao.toLowerCase().includes(q))||
+      (c.categoria&&c.categoria.toLowerCase().includes(q))||
+      (c.fornecedor&&c.fornecedor.toLowerCase().includes(q));
     if(filtro==='previsto')return mb&&c.status==='previsto';
     if(filtro==='recebido')return mb&&c.status==='recebido';
+    if(filtro==='atrasado')return mb&&c.status!=='recebido'&&c.vencimento&&c.vencimento<hoje;
     return mb;
-  }).sort(function(a,b){return new Date(a.vencimento)-new Date(b.vencimento);});
+  }).sort(function(a,b){return new Date(a.vencimento||'9999-12-31')-new Date(b.vencimento||'9999-12-31');});
 
-  var sb=div('search-wrap',[el('span',{},'🔍'),el('input',{placeholder:'Buscar...',value:busca,oninput:function(e){var b=Object.assign({},state.busca);b.receber=e.target.value;setState({busca:b});}})]);
-  var chips=['todos','previsto','recebido'].map(function(f){return el('button',{class:'chip'+(filtro===f?' active':''),onclick:function(){var fi=Object.assign({},state.filtro);fi.receber=f;setState({filtro:fi});}},f.charAt(0).toUpperCase()+f.slice(1));});
+  var kpis=el('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'20px'}},[
+    el('div',{class:'kpi-card'},[el('div',{class:'kpi-label'},'A receber'),el('div',{class:'kpi-value'},fmtMoney(totalPrevisto)),el('div',{class:'kpi-sub'},'pendente')]),
+    el('div',{class:'kpi-card green'},[el('div',{class:'kpi-label'},'Recebido no mês'),el('div',{class:'kpi-value green'},fmtMoney(recebidoMes)),el('div',{class:'kpi-sub'},hoje.slice(0,7))]),
+    el('div',{class:'kpi-card'},[el('div',{class:'kpi-label'},'Atrasados'),el('div',{class:'kpi-value',style:{color:totalAtrasado>0?'var(--red)':'var(--text)'}},fmtMoney(totalAtrasado)),el('div',{class:'kpi-sub'},atrasados.length+' entrada'+(atrasados.length!==1?'s':''))]),
+    el('div',{class:'kpi-card'},[el('div',{class:'kpi-label'},'Próximos 7 dias'),el('div',{class:'kpi-value'},fmtMoney(prox7)),el('div',{class:'kpi-sub'},'previsão')]),
+  ]);
+
+  var sb=div('search-wrap',[
+    el('span',{},'🔍'),
+    el('input',{placeholder:'Buscar por descrição, categoria, cliente...',value:busca,
+      oninput:function(e){var b=Object.assign({},state.busca);b.receber=e.target.value;setState({busca:b});}}),
+  ]);
+
+  var chips=[
+    {k:'todos',l:'Todos'},
+    {k:'previsto',l:'A receber'},
+    {k:'recebido',l:'Recebido'},
+    {k:'atrasado',l:'🔴 Atrasado'},
+  ].map(function(f){
+    return el('button',{class:'chip'+(filtro===f.k?' active':''),onclick:function(){var fi=Object.assign({},state.filtro);fi.receber=f.k;setState({filtro:fi});}},f.l);
+  });
+
+  var FORMA_LABEL={dinheiro:'Dinheiro',pix:'Pix',ted:'TED/DOC',boleto:'Boleto',credito:'Cartão crédito',debito:'Cartão débito',cheque:'Cheque',outros:'Outros'};
 
   var rows=filtrados.length===0
-    ?[el('tr',{},[el('td',{colspan:'6',style:{textAlign:'center',padding:'30px',color:'var(--text3)'}},'Nenhuma entrada encontrada')])]
+    ?[el('tr',{},[el('td',{colspan:'8',style:{textAlign:'center',padding:'32px',color:'var(--text3)'}},'Nenhuma entrada encontrada')])]
     :filtrados.map(function(c){
-      return el('tr',{},[
-        el('td',{class:'text-main'},c.descricao),el('td',{},c.categoria),el('td',{style:{fontWeight:'600',color:'var(--green)'}},fmtMoney(c.valor)),el('td',{},fmtDate(c.vencimento)),el('td',{},[el('span',{class:'badge '+c.status},c.status)]),
-        el('td',{},[c.status!=='recebido'?el('button',{class:'btn-icon edit',onclick:function(){updateConta(Object.assign({},c,{status:'recebido'}));}}, '✓'):null,el('button',{class:'btn-icon edit',onclick:function(){setState({modal:{tipo:'receber',editItem:c}});}}, '✏️'),el('button',{class:'btn-icon',onclick:function(){deleteConta(c.id);}}, '🗑️')].filter(Boolean)),
+      var d=diasRestantes(c.vencimento);
+      var isAtrasado=d!==null&&d<0&&c.status!=='recebido';
+      var st=statusBadge(c);
+      var bancoDest=(state.bancos||[]).find(function(b){return b.id===c.banco;});
+      return el('tr',{
+        style:{borderBottom:'1px solid var(--border)',background:isAtrasado?'rgba(239,68,68,.04)':''},
+        onmouseenter:function(e){e.currentTarget.style.background=isAtrasado?'rgba(239,68,68,.08)':'var(--bg3)';},
+        onmouseleave:function(e){e.currentTarget.style.background=isAtrasado?'rgba(239,68,68,.04)':'';},
+      },[
+        el('td',{style:{padding:'10px 14px'}},[
+          el('div',{style:{fontWeight:'600',fontSize:'13px',color:'var(--text)'}},c.descricao),
+          c.fornecedor?el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px'}},'👤 '+c.fornecedor):null,
+          c.notas?el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px',fontStyle:'italic'}},c.notas):null,
+        ].filter(Boolean)),
+        el('td',{style:{padding:'10px 12px',fontSize:'12px',color:'var(--text3)'}},c.categoria||'—'),
+        el('td',{style:{padding:'10px 12px',fontWeight:'700',color:'var(--green)',fontSize:'14px'}},fmtMoney(c.valor||0)),
+        el('td',{style:{padding:'10px 12px',fontSize:'12px'}},[
+          el('div',{},fmtDate(c.vencimento)),
+          d!==null&&c.status!=='recebido'?el('div',{style:{fontSize:'11px',color:d<0?'var(--red)':d===0?'var(--gold)':'var(--text3)',fontWeight:'600'}},
+            d<0?'⚠ Atrasado '+Math.abs(d)+'d':d===0?'🕐 Hoje':d+'d'):null,
+        ].filter(Boolean)),
+        el('td',{style:{padding:'10px 12px',fontSize:'11px',color:'var(--text3)'}},[
+          c.formaPagamento?el('div',{},FORMA_LABEL[c.formaPagamento]||c.formaPagamento):null,
+          bancoDest?el('div',{style:{fontWeight:'500',color:'var(--text)'}},bancoDest.nome):null,
+        ].filter(Boolean)),
+        el('td',{style:{padding:'10px 12px'}},[
+          c.recorrente?el('span',{style:{fontSize:'11px',color:'var(--gold)'},title:'Recorrente'},'🔄'):null,
+        ].filter(Boolean)),
+        el('td',{style:{padding:'10px 12px'}},[el('span',{class:'badge '+st},c.status==='previsto'?'Previsto':c.status==='recebido'?'Recebido':'Atrasado')]),
+        el('td',{style:{padding:'8px 10px',textAlign:'right'}},[
+          el('div',{style:{display:'flex',gap:'4px',justifyContent:'flex-end'}},[
+            c.status!=='recebido'?el('button',{class:'btn-icon edit',title:'Marcar como recebido',onclick:function(){marcarRecebido(c);}},
+              el('span',{style:{fontSize:'14px',color:'var(--green)'}},'✓')):null,
+            el('button',{class:'btn-icon edit',title:'Editar',onclick:function(){setState({modal:{tipo:'receber',editItem:c}});}}, '✏️'),
+            el('button',{class:'btn-icon',title:'Excluir',onclick:function(){deleteConta(c.id);}}, '🗑️'),
+          ].filter(Boolean)),
+        ]),
       ]);
     });
 
   return div('',[
-    div('page-header',[el('h1',{},'Contas a receber'),el('p',{},'Entradas previstas e realizadas')]),
-    div('action-row',[el('div',{style:{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}},[sb,div('filter-row',chips)]),el('button',{class:'btn-primary',onclick:function(){setState({modal:{tipo:'receber',editItem:null}});}}, '+ Nova entrada')]),
-    div('card',[div('table-wrap',[el('table',{},[el('thead',{},[el('tr',{},[el('th',{},'Descrição'),el('th',{},'Categoria'),el('th',{},'Valor'),el('th',{},'Previsão'),el('th',{},'Status'),el('th',{},'')])])  ,el('tbody',{},rows)])])]),
+    div('page-header',[
+      el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},[
+        el('div',{},[
+          el('h1',{},'💰 Contas a Receber'),
+          el('p',{},'Entradas previstas e realizadas — com controle de banco e forma de recebimento'),
+        ]),
+        btn('btn-primary','+ Nova entrada',function(){setState({modal:{tipo:'receber',editItem:null}});}),
+      ]),
+    ]),
+    kpis,
+    div('action-row',[
+      el('div',{style:{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}},[sb,div('filter-row',chips)]),
+    ]),
+    div('card',[
+      div('table-wrap',[
+        el('table',{style:{width:'100%',borderCollapse:'collapse'}},[
+          el('thead',{},[el('tr',{style:{borderBottom:'2px solid var(--border)'}},[
+            'Descrição / Cliente','Categoria','Valor','Vencimento','Recebimento','Rec.','Status','',
+          ].map(function(h){return el('th',{style:{padding:'8px 14px',textAlign:'left',fontSize:'11px',color:'var(--text3)',fontWeight:'700',textTransform:'uppercase'}},h);}))]),
+          el('tbody',{},rows),
+        ]),
+      ]),
+    ]),
   ]);
 }
 
@@ -1177,7 +1291,7 @@ function render(){
   var root=document.getElementById('app');
   root.innerHTML='';
 
-  var pages={dashboard:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar};
+  var pages={dashboard:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas};
   var pageContent=(pages[state.page]||renderDashboard)();
   var content=div('content',[pageContent]);
   var main=div('main',[renderTopbar(),content]);
@@ -1201,6 +1315,8 @@ function render(){
   if(orcamentoModal)app.appendChild(orcamentoModal);
   if(buscaModal)app.appendChild(buscaModal);
   if(perfilModal)app.appendChild(perfilModal);
+  var alertaBanner=typeof renderAlertaBanner==='function'?renderAlertaBanner():null;
+  if(alertaBanner)app.appendChild(alertaBanner);
   if(state.toast){
     var t=el('div',{class:'toast '+state.toast.type},[el('span',{},state.toast.type==='success'?'✓':state.toast.type==='error'?'✕':'ℹ'),el('span',{},state.toast.msg)]);
     app.appendChild(t);
@@ -1225,6 +1341,7 @@ function render(){
 <script src="js/page-emprestimos.js"></script>
 <script src="js/page-fornecedores.js"></script>
 <script src="js/page-funcionarios.js"></script>
+<script src="js/page-tarefas.js"></script>
 <script>
 // ── TEMA ──────────────────────────────────────────────────────────────────────
 (function(){if(lsGet('theme','dark')==='light')document.body.classList.add('theme-light');})();
@@ -1266,8 +1383,8 @@ function initApp(){
   document.getElementById('pin-overlay').style.display='none';
   render();
   loadFromFirebase()
-    .then(function(){runRecorrencia();migrarVendasStone();})
-    .catch(function(){runRecorrencia();migrarVendasStone();});
+    .then(function(){runRecorrencia();migrarVendasStone();if(typeof setupTarefasNotificacoes==='function')setupTarefasNotificacoes();})
+    .catch(function(){runRecorrencia();migrarVendasStone();if(typeof setupTarefasNotificacoes==='function')setupTarefasNotificacoes();});
 }
 
 function lockApp(){
