@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Financial Routine — DJ DEVELOPMENT</title>
+<title>Financial Routine v1.1.1 — DJ DEVELOPMENT</title>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#c9a84c"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -632,7 +632,13 @@ function renderSidebar(){
   var pagar=state.contas.filter(function(c){return c.profile===state.profile&&c.tipo==='pagar'&&c.status!=='pago';});
   var alertCount=pagar.filter(function(c){var d=diasRestantes(c.vencimento);return d!==null&&d<=7;}).length;
 
-  var logo=div('sidebar-logo',[div('logo-name','Financial Routine'),div('logo-sub','DJ DEVELOPMENT')]);
+  var logo=div('sidebar-logo',[
+    div('logo-name','Financial Routine'),
+    el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'2px'}},[
+      div('logo-sub','DJ DEVELOPMENT'),
+      el('span',{style:{fontSize:'9px',fontWeight:'700',color:'var(--gold)',letterSpacing:'.5px',background:'var(--gold-dim)',padding:'1px 5px',borderRadius:'4px'}},'v1.1.1'),
+    ]),
+  ]);
 
   var profBtn=el('button',{class:'profile-btn',onclick:function(){setState({showProfiles:!state.showProfiles});}},
     [el('div',{class:'profile-dot',style:{background:pf.color}}),
