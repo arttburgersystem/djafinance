@@ -221,6 +221,11 @@ pre{font-size:11px;color:var(--text2);background:var(--bg3);padding:12px;border-
   table{font-size:12px}
   td,th{padding:7px 8px!important}
 }
+#djf-weather b{color:var(--text);font-weight:700}
+@media(max-width:768px){
+  .geo-city{display:none}
+  #djf-weather{font-size:11px}
+}
 @media(min-width:769px){
   .mobile-nav{display:none!important}
   .mobile-topbar-btn{display:none!important}
@@ -337,6 +342,80 @@ function showToast(msg,type,dur){
   type=type||'success';dur=dur||2800;
   setState({toast:{msg:msg,type:type}});
   setTimeout(function(){setState({toast:null});},dur);
+}
+
+// ── CLIMA & LOCALIZAÇÃO ───────────────────────────────────────────────────────
+var _djfGeo={city:'',bairro:'',temp:null,icon:'',loading:false,error:false,lat:null,lon:null};
+
+function _wmoIcon(code){
+  if(code===0)return'☀️';
+  if(code<=3)return'⛅';
+  if(code<=48)return'🌫️';
+  if(code<=55)return'🌦️';
+  if(code<=65)return'🌧️';
+  if(code<=77)return'❄️';
+  if(code<=82)return'🌧️';
+  return'⛈️';
+}
+
+function _geoDisplay(){
+  var el=document.getElementById('djf-weather');
+  if(!el)return;
+  if(_djfGeo.loading){el.innerHTML='<span style="color:var(--text3);font-size:11px">📍 Localizando...</span>';return;}
+  if(_djfGeo.error||(!_djfGeo.city&&_djfGeo.temp===null)){el.innerHTML='';return;}
+  var city=_djfGeo.bairro||_djfGeo.city||'';
+  var temp=_djfGeo.temp!==null?(_djfGeo.icon+' <b>'+Math.round(_djfGeo.temp)+'°C</b>'):'';
+  var loc=city?('<span class="geo-city">📍 '+city+'</span>'):'';
+  var sep=city&&temp?' &nbsp;·&nbsp; ':'';
+  el.innerHTML='<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text3)">'+loc+sep+temp+'</span>';
+}
+
+function _fetchWeather(lat,lon){
+  return fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current_weather=true&timezone=America%2FSao_Paulo')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.current_weather){
+        _djfGeo.temp=d.current_weather.temperature;
+        _djfGeo.icon=_wmoIcon(d.current_weather.weathercode);
+        _geoDisplay();
+      }
+    }).catch(function(){});
+}
+
+function _fetchCity(lat,lon){
+  return fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lon+'&format=json&zoom=14&accept-language=pt-BR')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var a=d.address||{};
+      _djfGeo.city=a.city||a.town||a.municipality||a.county||'';
+      _djfGeo.bairro=a.suburb||a.neighbourhood||a.village||'';
+      _geoDisplay();
+    }).catch(function(){});
+}
+
+function initWeatherLocation(){
+  if(!navigator.geolocation)return;
+  _djfGeo.loading=true; _djfGeo.error=false;
+  _geoDisplay();
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude,lon=pos.coords.longitude;
+    _djfGeo.lat=lat; _djfGeo.lon=lon; _djfGeo.loading=false;
+    Promise.all([_fetchWeather(lat,lon),_fetchCity(lat,lon)]);
+    // Atualiza temperatura a cada 10 min
+    if(window._djfWeatherTimer)clearInterval(window._djfWeatherTimer);
+    window._djfWeatherTimer=setInterval(function(){_fetchWeather(lat,lon);},600000);
+    // Atualiza posição a cada 30 min
+    if(window._djfGeoWatcher)navigator.geolocation.clearWatch(window._djfGeoWatcher);
+    window._djfGeoWatcher=navigator.geolocation.watchPosition(function(p){
+      if(Math.abs(p.coords.latitude-lat)>0.01||Math.abs(p.coords.longitude-lon)>0.01){
+        lat=p.coords.latitude; lon=p.coords.longitude;
+        _djfGeo.lat=lat; _djfGeo.lon=lon;
+        Promise.all([_fetchWeather(lat,lon),_fetchCity(lat,lon)]);
+      }
+    },null,{timeout:30000,maximumAge:1800000,enableHighAccuracy:false});
+  },function(){
+    _djfGeo.loading=false; _djfGeo.error=true; _geoDisplay();
+  },{timeout:12000,maximumAge:300000,enableHighAccuracy:false});
 }
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
@@ -714,10 +793,22 @@ function renderTopbar(){
   var searchBtn=el('button',{class:'btn-ghost',style:{padding:'6px 12px',fontSize:'13px'},onclick:function(){setState({buscaModal:true,buscaBusca:''});}}, '🔍 Buscar');
   var clockEl=el('span',{id:'djf-clock',style:{fontVariantNumeric:'tabular-nums',fontSize:'13px',color:'var(--text3)',letterSpacing:'.5px',fontWeight:'600'}},horaAtual);
   var hamburger=el('button',{class:'mobile-topbar-btn',onclick:function(){setState({sidebarOpen:!state.sidebarOpen});}},state.sidebarOpen?'✕':'☰');
+  var weatherEl=el('div',{id:'djf-weather',style:{display:'flex',alignItems:'center'}});
+  // Preenche imediatamente com o estado atual (sem re-render)
+  (function(){
+    if(_djfGeo.loading){weatherEl.innerHTML='<span style="color:var(--text3);font-size:11px">📍 Localizando...</span>';return;}
+    if(_djfGeo.error||(!_djfGeo.city&&_djfGeo.temp===null)){return;}
+    var city=_djfGeo.bairro||_djfGeo.city||'';
+    var temp=_djfGeo.temp!==null?(_djfGeo.icon+' <b>'+Math.round(_djfGeo.temp)+'°C</b>'):'';
+    var loc=city?('<span class="geo-city">📍 '+city+'</span>'):'';
+    var sep=city&&temp?' &nbsp;·&nbsp; ':'';
+    weatherEl.innerHTML='<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text3)">'+loc+sep+temp+'</span>';
+  })();
   return div('topbar',[
     hamburger,
     el('div',{class:'topbar-title'},titles[state.page]||''),
     div('topbar-right',[
+      weatherEl,
       el('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'1px'}},[
         el('span',{class:'topbar-date'},dataAtual),
         clockEl,
@@ -1534,6 +1625,7 @@ function initApp(){
     if(window.innerWidth>768&&state.sidebarOpen){Object.assign(state,{sidebarOpen:false});render();}
   };
   window.addEventListener('resize',window._djfResizeHandler);
+  initWeatherLocation();
   loadFromFirebase()
     .then(function(){runRecorrencia();migrarVendasStone();if(typeof setupTarefasNotificacoes==='function')setupTarefasNotificacoes();})
     .catch(function(){runRecorrencia();migrarVendasStone();if(typeof setupTarefasNotificacoes==='function')setupTarefasNotificacoes();});
