@@ -134,26 +134,49 @@ function renderFornecedores(){
   if(state.fornecedorModal){
     var m=state.fornecedorModal;
     var ed=m.editItem||{};
-    var isEdit=!!ed.id;
+    var isEdit=!!(ed.id);
 
     function gf(id){var e=document.getElementById('forn-'+id);return e?e.value:'';}
+
+    // Captura todos os valores digitados no DOM antes de qualquer re-render
+    function snapForm(){
+      var flds=['nome','nomeFantasia','tipo','documento','inscricao','site',
+                'telefone','celular','email','contato','cep','rua','numero',
+                'complemento','bairro','cidade','estado','prazo','limite','notas'];
+      var r={};
+      flds.forEach(function(f){var e=document.getElementById('forn-'+f);if(e)r[f]=e.value;});
+      return r;
+    }
 
     function buscarCep(){
       var cep=(gf('cep')||'').replace(/\D/g,'');
       if(cep.length!==8){showToast('CEP inválido','error');return;}
       var b=document.getElementById('forn-cep-btn');
-      if(b){b.textContent='...';b.disabled=true;}
+      if(b){b.textContent='⏳';b.disabled=true;}
       fetch('https://viacep.com.br/ws/'+cep+'/json/')
         .then(function(r){return r.json();})
         .then(function(d){
-          if(b){b.textContent='Buscar';b.disabled=false;}
-          if(d.erro){showToast('CEP não encontrado','error');return;}
-          var set=function(id,v){var e=document.getElementById('forn-'+id);if(e)e.value=v||'';};
-          set('rua',d.logradouro);set('bairro',d.bairro);set('cidade',d.localidade);set('estado',d.uf);
+          if(d.erro){
+            var b2=document.getElementById('forn-cep-btn');
+            if(b2){b2.textContent='Buscar';b2.disabled=false;}
+            showToast('CEP não encontrado','error');
+            return;
+          }
+          // Captura o que o usuário já digitou, mescla com o retorno e salva no state
+          var snap=snapForm();
+          var merged=Object.assign({},ed,snap,{
+            rua:d.logradouro||snap.rua||'',
+            bairro:d.bairro||snap.bairro||'',
+            cidade:d.localidade||snap.cidade||'',
+            estado:d.uf||snap.estado||'',
+          });
+          setState({fornecedorModal:{editItem:merged}});
           showToast('Endereço encontrado!');
-          setTimeout(function(){var n=document.getElementById('forn-numero');if(n)n.focus();},50);
-        }).catch(function(){
-          if(b){b.textContent='Buscar';b.disabled=false;}
+          setTimeout(function(){var n=document.getElementById('forn-numero');if(n)n.focus();},80);
+        })
+        .catch(function(){
+          var b2=document.getElementById('forn-cep-btn');
+          if(b2){b2.textContent='Buscar';b2.disabled=false;}
           showToast('Erro ao buscar CEP','error');
         });
     }
@@ -165,49 +188,45 @@ function renderFornecedores(){
       if(b){b.textContent='⏳';b.disabled=true;}
       fetch('https://brasilapi.com.br/api/cnpj/v1/'+cnpj)
         .then(function(r){
-          if(!r.ok)throw new Error('CNPJ não encontrado (status '+r.status+')');
+          if(!r.ok)throw new Error('status '+r.status);
           return r.json();
         })
         .then(function(d){
-          if(b){b.textContent='🔍 Consultar';b.disabled=false;}
-          var set=function(id,v){var e=document.getElementById('forn-'+id);if(e&&v)e.value=v;};
-          var nome=d.nome_fantasia&&d.nome_fantasia.trim()?d.nome_fantasia.trim():d.razao_social||'';
-          set('nome',nome);
-          // Formatar CNPJ: 00.000.000/0000-00
+          var snap=snapForm();
           var cnpjFmt=cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
-          var docEl=document.getElementById('forn-documento');if(docEl)docEl.value=cnpjFmt;
-          if(d.telefone){
-            var tel=(d.telefone||'').replace(/\D/g,'');
-            var telFmt=tel.length===10?tel.replace(/^(\d{2})(\d{4})(\d{4})$/,'($1) $2-$3'):
-                       tel.length===11?tel.replace(/^(\d{2})(\d{5})(\d{4})$/,'($1) $2-$3'):(d.telefone||'');
-            set('telefone',telFmt);
-          }
-          set('email',d.email||'');
-          // Endereço
+          var tel=(d.telefone||'').replace(/\D/g,'');
+          var telFmt=tel.length===10?tel.replace(/^(\d{2})(\d{4})(\d{4})$/,'($1) $2-$3'):
+                     tel.length===11?tel.replace(/^(\d{2})(\d{5})(\d{4})$/,'($1) $2-$3'):(d.telefone||'');
           var cepNum=(d.cep||'').replace(/\D/g,'');
           var cepFmt=cepNum.length===8?cepNum.replace(/^(\d{5})(\d{3})$/,'$1-$2'):(d.cep||'');
-          set('cep',cepFmt);
-          set('rua',(d.logradouro||'').toUpperCase()===d.logradouro?(d.logradouro||'').replace(/\b\w/g,function(c){return c.toUpperCase();}):d.logradouro||'');
-          set('numero',d.numero||'');
-          set('complemento',d.complemento||'');
-          set('bairro',(d.bairro||'').toUpperCase()===d.bairro?(d.bairro||'').replace(/\b\w/g,function(c){return c.toUpperCase();}):d.bairro||'');
-          set('cidade',(d.municipio||'').toUpperCase()===d.municipio?(d.municipio||'').replace(/\b\w/g,function(c){return c.toUpperCase();}):d.municipio||'');
-          set('estado',d.uf||'');
-          // Situação nas notas
-          var situacao=d.descricao_situacao_cadastral||d.situacao_cadastral||'';
-          var porte=d.descricao_porte||d.porte||'';
-          var nat=d.descricao_natureza_juridica||'';
-          var notasVal=[
-            situacao?'Situação: '+situacao:'',
-            nat?'Natureza: '+nat:'',
-            porte?'Porte: '+porte:'',
+          function tc(s){if(!s)return'';return s.toUpperCase()===s?s.replace(/\b\w/g,function(c){return c.toUpperCase();}):s;}
+          var notas=[
+            d.descricao_situacao_cadastral||d.situacao_cadastral||'',
+            d.descricao_natureza_juridica||'',
+            d.descricao_porte||d.porte||'',
           ].filter(Boolean).join(' · ');
-          var notasEl=document.getElementById('forn-notas');
-          if(notasEl&&notasVal)notasEl.value=notasVal;
+          // Mescla: state do item editado < valores digitados < dados da API
+          var merged=Object.assign({},ed,snap,{
+            documento:cnpjFmt,
+            nome:d.razao_social||snap.nome||'',
+            nomeFantasia:(d.nome_fantasia&&d.nome_fantasia.trim())?d.nome_fantasia.trim():(snap.nomeFantasia||''),
+            telefone:telFmt||snap.telefone||'',
+            email:d.email||snap.email||'',
+            cep:cepFmt||snap.cep||'',
+            rua:tc(d.logradouro)||snap.rua||'',
+            numero:d.numero||snap.numero||'',
+            complemento:d.complemento||snap.complemento||'',
+            bairro:tc(d.bairro)||snap.bairro||'',
+            cidade:tc(d.municipio)||snap.cidade||'',
+            estado:d.uf||snap.estado||'',
+            notas:notas||snap.notas||'',
+          });
+          setState({fornecedorModal:{editItem:merged}});
           showToast('Dados do CNPJ carregados! Confirme e salve.');
         })
-        .catch(function(err){
-          if(b){b.textContent='🔍 Consultar';b.disabled=false;}
+        .catch(function(){
+          var b2=document.getElementById('forn-cnpj-btn');
+          if(b2){b2.textContent='🔍 Consultar';b2.disabled=false;}
           showToast('CNPJ não encontrado ou serviço indisponível','error');
         });
     }
@@ -218,6 +237,7 @@ function renderFornecedores(){
       var item={
         id:isEdit?ed.id:('forn_'+Date.now()),
         nome:nome,
+        nomeFantasia:(gf('nomeFantasia')||'').trim(),
         tipo:gf('tipo')||'fornecedor',
         documento:(gf('documento')||'').trim(),
         inscricao:(gf('inscricao')||'').trim(),
@@ -301,7 +321,8 @@ function renderFornecedores(){
             style:{whiteSpace:'nowrap',padding:'8px 14px',fontSize:'12px',flexShrink:'0'},
             onclick:buscarCnpj},'🔍 Consultar'),
         ]),
-        div('form-group',[el('label',{class:'form-label'},'Nome / Razão Social *'),inp2('nome','text','Nome, empresa ou pessoa...',ed.nome||'')]),
+        div('form-group',[el('label',{class:'form-label'},'Nome / Razão Social *'),inp2('nome','text','Nome da empresa ou pessoa física...',ed.nome||'')]),
+        div('form-group',[el('label',{class:'form-label'},'Nome Fantasia / Apelido'),inp2('nomeFantasia','text','Como é conhecido no dia a dia...',ed.nomeFantasia||'')]),
         grid2(fg('Tipo',tipoSel),fg('Inscrição Estadual / Municipal',inp2('inscricao','text','IE ou IM',ed.inscricao||''))),
         fg('Site',inp2('site','url','https://site.com.br',ed.site||'')),
       ]),
@@ -365,6 +386,7 @@ function renderFornecedores(){
     },[
       el('td',{style:{padding:'10px 14px'}},[
         el('div',{style:{fontWeight:'600',fontSize:'13px'}},f.nome),
+        f.nomeFantasia?el('div',{style:{fontSize:'11px',color:'var(--gold)',marginTop:'1px',fontWeight:'500'}},'🏷 '+f.nomeFantasia):null,
         endStr?el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px'}},'📍 '+endStr):null,
       ].filter(Boolean)),
       el('td',{style:{padding:'10px 14px'}},[
