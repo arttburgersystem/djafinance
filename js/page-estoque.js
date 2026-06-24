@@ -417,6 +417,36 @@ function renderProdutoModal() {
   var fornCombo = buildFornecedorCombo(state.fornecedores||[], p.fornecedor_id||'', function(id){p.fornecedor_id=id;});
   var obsInp    = el('input',{class:'form-input',value:p.obs||'',placeholder:'Observações...',oninput:function(){p.obs=this.value;}});
 
+  // SKU com botão auto-gerar
+  var skuWrap = el('div',{style:{display:'flex',gap:'6px'}});
+  var skuInp = el('input',{class:'form-input',value:p.sku||'',placeholder:'Ex: SKU-0001',oninput:function(){p.sku=this.value;}});
+  var skuAutoBtn = el('button',{class:'btn-ghost',style:{padding:'6px 10px',fontSize:'11px',flexShrink:'0',whiteSpace:'nowrap'}});
+  skuAutoBtn.textContent = '⚡ Gerar';
+  skuAutoBtn.onclick = function(e){
+    e.preventDefault();
+    var prefixo = (p.tipo==='insumo'?'INS':'SKU');
+    var num = String(Math.floor(Math.random()*9000)+1000);
+    skuInp.value = prefixo+'-'+num;
+    p.sku = skuInp.value;
+  };
+  skuWrap.appendChild(skuInp);
+  skuWrap.appendChild(skuAutoBtn);
+
+  // Estoque máximo
+  var estMaxInp = el('input',{class:'form-input',type:'number',min:'0',step:'0.001',value:p.estoqueMaximo||'',placeholder:'0',oninput:function(){p.estoqueMaximo=parseFloat(this.value)||0;}});
+
+  // Dias de aviso de vencimento
+  var diasAvisoInp = el('input',{class:'form-input',type:'number',min:'1',step:'1',value:p.diasAvisoVencimento||'',placeholder:'Ex: 7',oninput:function(){p.diasAvisoVencimento=parseInt(this.value)||0;}});
+
+  // Flag: produto tem controle de vencimento
+  var ctrlVencCb = el('input',{type:'checkbox',id:'_ctrlVenc'});
+  if(p.controleVencimento) ctrlVencCb.checked = true;
+  ctrlVencCb.onchange = function(){p.controleVencimento=this.checked;setState({produtoModal:Object.assign({},state.produtoModal,{controleVencimento:this.checked})});};
+  var ctrlVencEl = el('div',{style:{display:'flex',gap:'8px',alignItems:'center',padding:'6px 0'}},[
+    ctrlVencCb,
+    el('label',{for:'_ctrlVenc',style:{fontSize:'12px',color:'var(--text2)',cursor:'pointer'}},'📅 Controlar data de vencimento por lote')
+  ]);
+
   // ── SEÇÃO CARDÁPIO (só para produto) ──────────────────────────────────────
   var setores = state.setoresImpressao || [];
   var setorSel = el('select',{class:'form-input',onchange:function(){p.setorImpressao=this.value;}},
@@ -471,6 +501,10 @@ function renderProdutoModal() {
       categoria:catVal, unidade:unidVal,
       custoMedio:p.custoMedio||0, precoVenda:p.precoVenda||0,
       estoqueAtual:p.estoqueAtual||0, estoqueMinimo:p.estoqueMinimo||0,
+      sku: (p.sku||'').trim(),
+      estoqueMaximo: p.estoqueMaximo||0,
+      controleVencimento: !!p.controleVencimento,
+      diasAvisoVencimento: p.diasAvisoVencimento||7,
       fornecedor_id:p.fornecedor_id||'', obs:p.obs||'',
       // Cardápio
       setorImpressao:p.setorImpressao||'',
@@ -517,6 +551,7 @@ function renderProdutoModal() {
 
         // IDENTIFICAÇÃO
         el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}},[
+          el('div',{style:{gridColumn:'1/-1'}},fld('SKU',skuWrap)),
           el('div',{style:{gridColumn:'1/-1'}},fld('Nome *',nomeInp)),
           el('div',{style:{gridColumn:'1/-1'}},catRow),
           el('div',{style:{gridColumn:'1/-1'}},unidRow),
@@ -524,8 +559,11 @@ function renderProdutoModal() {
           fld('Preço de venda (R$)',vendaInp),
           fld('Estoque atual',estAInp),
           fld('Estoque mínimo (alerta)',estMInp),
+          fld('Estoque máximo',estMaxInp),
+          el('div',{style:{gridColumn:'1/-1'}},ctrlVencEl),
+          p.controleVencimento ? el('div',{style:{gridColumn:'1/-1'}},fld('Aviso de vencimento (dias antes)',diasAvisoInp)) : null,
           el('div',{style:{gridColumn:'1/-1'}},fld('Fornecedor principal',fornCombo)),
-        ]),
+        ].filter(Boolean)),
 
         // CARDÁPIO (só produto)
         p.tipo==='produto' ? el('div',{},[
@@ -608,11 +646,14 @@ function renderMovModal() {
   var motivoSel = el('select',{class:'form-input',onchange:function(){m.motivo=this.value;}},
     motivos.map(function(mt){return el('option',{value:mt,selected:m.motivo===mt},mt);}));
   var obsInp    = el('input',{class:'form-input',value:m.obs||'',placeholder:'Observação (opcional)',oninput:function(){m.obs=this.value;}});
+  var loteInp = el('input',{class:'form-input',value:m.lote||'',placeholder:'Ex: L001, 2024-01...',oninput:function(){m.lote=this.value;}});
+  var vencInp = el('input',{class:'form-input',type:'date',value:m.dataVencimento||'',oninput:function(){m.dataVencimento=this.value;}});
 
   var prodInfoEl = prodAtual ? el('div',{style:{background:'var(--bg3)',borderRadius:'8px',padding:'8px 12px',fontSize:'12px',color:'var(--text3)',display:'flex',gap:'16px',flexWrap:'wrap',marginBottom:'4px'}},[
     el('span',{},'📦 Estoque: '+formatQtd(prodAtual.estoqueAtual,prodAtual.unidade)),
     el('span',{},'💰 Custo médio: '+fmtMoney(prodAtual.custoMedio||0)),
     prodAtual.estoqueMinimo>0 ? el('span',{style:{color:prodAtual.estoqueAtual<=prodAtual.estoqueMinimo?'var(--danger)':'var(--text3)'}},'⚠️ Mín: '+formatQtd(prodAtual.estoqueMinimo,prodAtual.unidade)) : null,
+    prodAtual.estoqueMaximo>0 ? el('span',{style:{color:prodAtual.estoqueAtual>=prodAtual.estoqueMaximo?'var(--danger)':'var(--text3)'}},'⬆️ Máx: '+formatQtd(prodAtual.estoqueMaximo,prodAtual.unidade)) : null,
   ].filter(Boolean)) : null;
 
   var cbGerarDesp = el('input',{type:'checkbox',id:'_gerardesp',onchange:function(){m.gerarDespesa=this.checked;}});
@@ -649,6 +690,8 @@ function renderMovModal() {
       tipo:tipo, motivo:m.motivo||motivos[0],
       quantidade:qtd, custoUnitario:custo, custoTotal:custo*qtd,
       data:m.data||today(), obs:m.obs||'', criadoEm:today(),
+      lote: m.lote || '',
+      dataVencimento: m.dataVencimento || '',
     };
 
     var novosProd = state.produtos.map(function(x){return x.id===novoProd.id?novoProd:x;});
@@ -677,6 +720,9 @@ function renderMovModal() {
     if (novoProd.estoqueMinimo>0 && novoProd.estoqueAtual<=novoProd.estoqueMinimo) {
       setTimeout(function(){showToast('⚠️ '+prod.nome+': estoque abaixo do mínimo!','error',4000);},600);
     }
+    if (novoProd.estoqueMaximo>0 && novoProd.estoqueAtual>novoProd.estoqueMaximo) {
+      setTimeout(function(){showToast('⚠️ '+prod.nome+': estoque ACIMA do máximo!','error',4000);},1200);
+    }
   }
 
   return el('div',{class:'modal-overlay',onclick:function(e){if(e.target===this)setState({movModal:null});}},
@@ -698,6 +744,10 @@ function renderMovModal() {
           el('div',{class:'form-group'},[el('label',{class:'form-label'},'Motivo'),motivoSel]),
           el('div',{style:{gridColumn:'1/-1'}},
             el('div',{class:'form-group'},[el('label',{class:'form-label'},'Observação'),obsInp])),
+          tipo!=='saida' ? el('div',{style:{gridColumn:'1/-1'}},
+            el('div',{class:'form-group'},[el('label',{class:'form-label'},'Número do Lote (opcional)'),loteInp])) : null,
+          (tipo!=='saida' && (prodAtual&&prodAtual.controleVencimento)) ? el('div',{style:{gridColumn:'1/-1'}},
+            el('div',{class:'form-group'},[el('label',{class:'form-label'},'📅 Data de Vencimento do Lote'),vencInp])) : null,
           gerarDespEl ? el('div',{style:{gridColumn:'1/-1'}},gerarDespEl) : null,
         ].filter(Boolean)),
         errEl,
@@ -757,6 +807,7 @@ function renderEstProdutos() {
           el('div',{style:{height:'100%',width:pct+'%',background:cor,borderRadius:'3px'}}),
         ]) : null,
         p.estoqueMinimo>0 ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'2px'}},'Mínimo: '+formatQtd(p.estoqueMinimo,p.unidade)) : null,
+        p.sku ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'2px'}},'SKU: '+p.sku) : null,
       ].filter(Boolean)),
       el('div',{style:{display:'flex',gap:'12px',fontSize:'12px',color:'var(--text3)',marginBottom:'10px',flexWrap:'wrap'}},[
         el('span',{},'Custo médio: '),el('strong',{style:{color:'var(--text)'}},fmtMoney(p.custoMedio||0)),
@@ -1109,6 +1160,25 @@ function renderEstABC() {
     ]),
     kpis, explica, tabela,
   ]);
+}
+
+// ── LOTES VENCENDO ───────────────────────────────────────────────────────────
+
+function _lotesVencendoEmBreve() {
+  var hoje = new Date();
+  var result = [];
+  var movs = (state.movEstoque||[]).filter(function(m){return m.profile===state.profile&&m.tipo==='entrada'&&m.dataVencimento;});
+  movs.forEach(function(m){
+    var prod = (state.produtos||[]).find(function(p){return p.id===m.produto_id;});
+    if(!prod) return;
+    var dias = prod.diasAvisoVencimento || 7;
+    var venc = new Date(m.dataVencimento+'T12:00:00');
+    var diff = Math.ceil((venc - hoje) / 86400000);
+    if(diff <= dias) {
+      result.push({mov:m, prod:prod, diff:diff, venc:m.dataVencimento});
+    }
+  });
+  return result.sort(function(a,b){return a.diff-b.diff;});
 }
 
 // ── RENDER PRINCIPAL ──────────────────────────────────────────────────────────

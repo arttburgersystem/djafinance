@@ -1,6 +1,6 @@
 // ── SETORES DE IMPRESSÃO & CONFIGURAÇÃO DE IMPRESSORAS ───────────────────────
 
-var _impTab = 'setores'; // 'setores' | 'config' | 'modelo'
+var _impTab = 'setores'; // 'setores' | 'config' | 'modelo' | 'impressoras'
 
 // ── Gera HTML do cupom para impressão ────────────────────────────────────────
 function gerarHtmlCupom(empresa, cfg, setor, itens, opcoes) {
@@ -128,6 +128,130 @@ function imprimirCupom(setor, itens, opcoes) {
   win.document.close();
   win.focus();
   setTimeout(function(){ win.print(); }, 600);
+}
+
+// ── Tab Impressoras ───────────────────────────────────────────────────────────
+function renderTabImpressoras() {
+  var aviso = el('div',{});
+  aviso.style.cssText = 'background:var(--gold-dim);border:1px solid var(--gold);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:var(--text);';
+  aviso.innerHTML = '<b>ℹ️ Como funciona a detecção de impressoras</b><br>'
+    +'Aplicações web não conseguem listar impressoras diretamente por segurança do navegador. '
+    +'Ao clicar em "Buscar Impressoras", o diálogo de impressão do sistema será aberto — '
+    +'ali você verá todas as impressoras instaladas (USB, rede/WiFi, compartilhadas). '
+    +'Selecione a padrão e feche o diálogo. Em seguida, adicione-a manualmente abaixo.';
+
+  var buscarBtn = el('button',{class:'btn-primary',style:{marginBottom:'16px'}});
+  buscarBtn.textContent = '🔍 Buscar Impressoras (abre diálogo do sistema)';
+  buscarBtn.onclick = function(){
+    // Abre print dialog para o usuário ver as impressoras disponíveis
+    var w = window.open('','_djfPrintDisc','width=1,height=1,top=-100');
+    if(w){
+      w.document.write('<html><body><script>window.onload=function(){window.print();window.close()}<\/script></body></html>');
+      w.document.close();
+    } else {
+      window.print();
+    }
+  };
+
+  // Lista de impressoras cadastradas manualmente
+  var imps = state.impressorasCadastradas || [];
+
+  var addBtn = btn('btn-secondary','+ Adicionar impressora manualmente', function(){
+    setState({impModal:{nome:'',tipo:'usb',ip:'',porta:'9100',padrao:false}});
+  });
+
+  var impModal = null;
+  if(state.impModal) {
+    var im = state.impModal;
+    var nomeI = el('input',{class:'form-input',value:im.nome||'',placeholder:'Ex: Bematech MP-4200 TH',oninput:function(){im.nome=this.value;}});
+    var tipoI = el('select',{class:'form-input',onchange:function(){im.tipo=this.value;setState({impModal:Object.assign({},state.impModal,{tipo:this.value})});}},
+      [
+        el('option',{value:'usb',selected:im.tipo==='usb'},'USB'),
+        el('option',{value:'rede',selected:im.tipo==='rede'},'Rede / WiFi / TCP-IP'),
+        el('option',{value:'compartilhada',selected:im.tipo==='compartilhada'},'Compartilhada (Windows)'),
+        el('option',{value:'bluetooth',selected:im.tipo==='bluetooth'},'Bluetooth'),
+      ]);
+    var ipI = el('input',{class:'form-input',value:im.ip||'',placeholder:im.tipo==='compartilhada'?'\\\\SERVIDOR\\IMPRESSORA':'192.168.1.100',oninput:function(){im.ip=this.value;}});
+    var portaI = el('input',{class:'form-input',value:im.porta||'9100',placeholder:'9100',oninput:function(){im.porta=this.value;}});
+    var padraoI = el('input',{type:'checkbox',id:'_imppadrao'});
+    if(im.padrao) padraoI.checked=true;
+    padraoI.onchange=function(){im.padrao=this.checked;};
+
+    function salvarImp() {
+      if(!(im.nome||'').trim()){showToast('Informe o nome da impressora','error');return;}
+      var nova = {id:uid(),nome:im.nome.trim(),tipo:im.tipo||'usb',ip:im.ip||'',porta:im.porta||'9100',padrao:im.padrao||false,profile:state.profile};
+      var arr = (state.impressorasCadastradas||[]);
+      if(im.id) {
+        arr = arr.map(function(x){return x.id===im.id?Object.assign({},x,nova):x;});
+      } else {
+        if(nova.padrao) arr=arr.map(function(x){return Object.assign({},x,{padrao:false});});
+        arr = arr.concat([nova]);
+      }
+      lsSet('impressorasCadastradas',arr);
+      setState({impressorasCadastradas:arr,impModal:null});
+      scheduleSave();
+      showToast('Impressora salva!','success');
+    }
+
+    impModal = el('div',{class:'modal-overlay',onclick:function(e){if(e.target===this)setState({impModal:null});}},
+      el('div',{class:'modal',style:{maxWidth:'480px'}},[
+        el('div',{class:'modal-header'},[
+          el('h3',{class:'modal-title'},'🖨️ '+(im.id?'Editar':'Adicionar')+' Impressora'),
+          el('button',{class:'modal-close',onclick:function(){setState({impModal:null});}}, '✕'),
+        ]),
+        el('div',{class:'modal-body'},[
+          el('div',{style:{display:'grid',gridTemplateColumns:'1fr',gap:'12px'}},[
+            el('div',{class:'form-group'},[el('label',{class:'form-label'},'Nome / Modelo *'),nomeI]),
+            el('div',{class:'form-group'},[el('label',{class:'form-label'},'Tipo de conexão'),tipoI]),
+            im.tipo!=='usb' ? el('div',{class:'form-group'},[el('label',{class:'form-label'},im.tipo==='compartilhada'?'Caminho de rede (\\\\Servidor\\Impres.)':'Endereço IP ou Hostname'),ipI]) : null,
+            im.tipo==='rede' ? el('div',{class:'form-group'},[el('label',{class:'form-label'},'Porta TCP (padrão 9100)'),portaI]) : null,
+            el('div',{style:{display:'flex',gap:'8px',alignItems:'center',padding:'4px 0'}},[padraoI,el('label',{for:'_imppadrao',style:{cursor:'pointer',fontSize:'12px'}},'Definir como impressora padrão')]),
+          ].filter(Boolean)),
+        ]),
+        el('div',{class:'modal-footer'},[
+          btn('btn-secondary','Cancelar',function(){setState({impModal:null});}),
+          btn('btn-primary','💾 Salvar',salvarImp),
+        ]),
+      ])
+    );
+  }
+
+  var lista = imps.filter(function(i){return i.profile===state.profile;});
+  var listaEl = lista.length === 0
+    ? el('div',{style:{padding:'32px',textAlign:'center',color:'var(--text3)',background:'var(--bg3)',borderRadius:'10px',border:'1px dashed var(--border)'}},'Nenhuma impressora cadastrada. Clique em "+ Adicionar" para registrar.')
+    : el('div',{style:{display:'flex',flexDirection:'column',gap:'8px'}},
+        lista.map(function(imp){
+          var TIPO_ICON = {usb:'🔌',rede:'🌐',compartilhada:'🖧',bluetooth:'📡'};
+          var card = el('div',{style:{background:'var(--bg2)',border:'1px solid '+(imp.padrao?'var(--gold)':'var(--border)'),borderRadius:'10px',padding:'12px 16px',display:'flex',alignItems:'center',gap:'12px'}});
+          var info = el('div',{style:{flex:'1'}});
+          var nomeEl = el('div',{style:{fontWeight:'700',fontSize:'13px',color:'var(--text)',display:'flex',alignItems:'center',gap:'6px'}});
+          nomeEl.innerHTML=(TIPO_ICON[imp.tipo]||'🖨️')+' '+imp.nome+(imp.padrao?' <span style="background:var(--gold);color:#000;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;">PADRÃO</span>':'');
+          var subEl = el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'3px'}});
+          subEl.textContent = imp.tipo.charAt(0).toUpperCase()+imp.tipo.slice(1)+(imp.ip?' — '+imp.ip+(imp.porta?':'+imp.porta:''):'');
+          info.appendChild(nomeEl); info.appendChild(subEl);
+          card.appendChild(info);
+          var editBtn = el('button',{class:'btn-ghost',style:{padding:'6px 10px',fontSize:'12px'}});
+          editBtn.textContent='✏️';
+          editBtn.onclick=function(){setState({impModal:Object.assign({},imp)});};
+          var delBtn = el('button',{class:'btn-ghost',style:{padding:'6px 10px',fontSize:'12px',color:'var(--danger)'}});
+          delBtn.textContent='🗑';
+          delBtn.onclick=function(){
+            if(!confirm('Excluir impressora "'+imp.nome+'"?'))return;
+            var arr=(state.impressorasCadastradas||[]).filter(function(x){return x.id!==imp.id;});
+            lsSet('impressorasCadastradas',arr);setState({impressorasCadastradas:arr});scheduleSave();
+          };
+          card.appendChild(editBtn); card.appendChild(delBtn);
+          return card;
+        }));
+
+  var wrap = el('div',{});
+  wrap.appendChild(aviso);
+  wrap.appendChild(buscarBtn);
+  wrap.appendChild(addBtn);
+  wrap.appendChild(el('div',{style:{height:'16px'}}));
+  wrap.appendChild(listaEl);
+  if(impModal) wrap.appendChild(impModal);
+  return wrap;
 }
 
 // ── Renderiza a página ────────────────────────────────────────────────────────
@@ -526,6 +650,7 @@ function renderImpressoes() {
     tabBtn('setores','🖨️ Setores'),
     tabBtn('config','⚙️ Configurações'),
     tabBtn('modelo','👁️ Modelo do Cupom'),
+    tabBtn('impressoras','🖨️ Impressoras'),
   ]);
 
   var headerBtns=_impTab==='setores'
@@ -543,9 +668,10 @@ function renderImpressoes() {
       el('div',{style:{display:'flex',gap:'8px'}},headerBtns),
     ]),
     tabBar,
-    _impTab==='setores'  ? renderSetores() : null,
-    _impTab==='config'   ? renderConfig()  : null,
-    _impTab==='modelo'   ? renderModelo()  : null,
+    _impTab==='setores'      ? renderSetores()         : null,
+    _impTab==='config'       ? renderConfig()          : null,
+    _impTab==='modelo'       ? renderModelo()          : null,
+    _impTab==='impressoras'  ? renderTabImpressoras()  : null,
   ].filter(Boolean));
 
   var root=el('div',{});

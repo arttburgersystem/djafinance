@@ -13,10 +13,12 @@ function initLeafletMap() {
     _djfMapInstance = null;
   }
 
-  var lat = (_djfGeo && _djfGeo.lat) || -15.77;
-  var lon = (_djfGeo && _djfGeo.lon) || -47.92;
+  // Brasil: centro quando sem geolocalização
+  var lat  = (_djfGeo && _djfGeo.lat) || -14.2;
+  var lon  = (_djfGeo && _djfGeo.lon) || -51.9;
+  var zoom = (_djfGeo && _djfGeo.lat) ? 14 : 4;
 
-  var map = window.L.map('djf-map-el').setView([lat, lon], 14);
+  var map = window.L.map('djf-map-el').setView([lat, lon], zoom);
   _djfMapInstance = map;
 
   window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

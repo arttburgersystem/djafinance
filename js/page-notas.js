@@ -20,13 +20,27 @@ var _notaAutoSave = null;
 function _autoSaveNota(id, conteudo) {
   clearTimeout(_notaAutoSave);
   _notaAutoSave = setTimeout(function(){
-    var nota = (state.notas||[]).find(function(n){return n.id===id;});
-    if (nota) _salvarNota(Object.assign({},nota,{conteudo:conteudo,atualizadoEm:new Date().toISOString()}));
+    var arr = (state.notas||[]);
+    var idx = arr.findIndex(function(n){return n.id===id;});
+    if (idx >= 0) {
+      // Mutação direta para não causar re-render (mantém foco no textarea)
+      arr[idx] = Object.assign({}, arr[idx], {conteudo:conteudo, atualizadoEm:new Date().toISOString()});
+      state.notas = arr.slice();
+      lsSet('notas', state.notas);
+      scheduleSave();
+    }
   }, 800);
 }
 function _autoSaveTituloNota(id, titulo) {
-  var nota = (state.notas||[]).find(function(n){return n.id===id;});
-  if (nota) _salvarNota(Object.assign({},nota,{titulo:titulo,atualizadoEm:new Date().toISOString()}));
+  var arr = (state.notas||[]);
+  var idx = arr.findIndex(function(n){return n.id===id;});
+  if (idx >= 0) {
+    arr[idx] = Object.assign({}, arr[idx], {titulo:titulo, atualizadoEm:new Date().toISOString()});
+    state.notas = arr.slice();
+    lsSet('notas', state.notas);
+    scheduleSave();
+    setState({}); // re-render para atualizar sidebar com novo título
+  }
 }
 
 var NOTA_CORES = ['#c9a84c','#3b82f6','#16a34a','#dc2626','#9333ea','#ea580c','#0891b2','#be185d'];

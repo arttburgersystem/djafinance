@@ -484,6 +484,8 @@ var state={
   filtro: {pagar:'todos',receber:'todos'},
   busca: {pagar:'',receber:''},
   mesSel: nowBR().getMonth(),
+  impressorasCadastradas: lsGet('impressorasCadastradas',[]),
+  impModal: null,
 };
 
 function lsGet(k,d){try{var v=localStorage.getItem('djf_'+k);return v?JSON.parse(v):d;}catch(e){return d;}}
