@@ -1,4 +1,4 @@
-// ── AJUDA — CENTRAL DE AJUDA v1.1.1 ─────────────────────────────────────────
+// ── AJUDA — CENTRAL DE AJUDA v2.0.0 ─────────────────────────────────────────
 
 var _ajudaSecao = null; // seção expandida atual
 
@@ -56,18 +56,30 @@ var AJUDA_SECOES = [
     conteudo: [
       {
         tipo: 'intro',
-        texto: 'Todos os módulos ficam na barra lateral esquerda, organizados por categoria. A topbar exibe informações em tempo real.',
+        texto: 'Todos os módulos ficam na barra lateral esquerda, organizados por categoria. As seções são colapsáveis — clique no título da categoria para recolher ou expandir. A topbar exibe informações em tempo real.',
       },
       {
         tipo: 'tabela',
         titulo: 'Categorias da Barra Lateral',
         cols: ['Seção', 'Módulos'],
         rows: [
-          ['📊 Principal', 'Dashboard com visão geral'],
-          ['💰 Financeiro', 'Bancos, Receitas, Despesas, DRE, Fluxo, Cartões, Empréstimos, Fornecedores, Funcionários'],
+          ['📊 Principal', 'Dashboard com visão geral financeira'],
+          ['💰 Financeiro', 'Bancos, Receitas, Despesas, DRE, Fluxo, Cartões, Empréstimos, Fornecedores, Funcionários, Estoque'],
+          ['🍽️ Negócio', 'Cardápio, KDS, Setores de Impressão'],
           ['🎯 Planejamento', 'Tarefas, Orçamento, Metas, Alertas, Recorrências'],
+          ['🛠️ Utilidades', 'Bloco de Notas, Mapa'],
           ['🔗 Integração', 'Relatórios e Exportação'],
-          ['🔐 Sistema', 'Usuários & Permissões, Auditoria, Ajuda'],
+          ['🔐 Sistema', 'Usuários & Permissões, Auditoria, Empresa, Ajuda'],
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Seções Colapsáveis da Sidebar',
+        items: [
+          'Clique no título de qualquer categoria para recolher ou expandir seus itens',
+          'O estado recolhido é salvo — na próxima visita a sidebar mantém a configuração',
+          'Clique em "← Recolher" no rodapé para compactar toda a sidebar (modo ícones)',
+          'No modo compacto, passe o mouse sobre os ícones para ver o nome do módulo',
         ],
       },
       {
@@ -77,8 +89,9 @@ var AJUDA_SECOES = [
           '📍 Localização: bairro/cidade detectado pelo GPS',
           '🌡️ Temperatura: graus Celsius atualizado a cada 10 minutos',
           '📅 Data e hora: dia da semana, data por extenso e hora com segundos',
-          '🧮 Calculadora: clique no ícone para abrir calculadora flutuante',
+          '🧮 Calculadora: clique no ícone para abrir calculadora flutuante com teclado numérico',
           '📅 Calendário: clique no ícone para ver o mês com marcadores de tarefas',
+          '📝 Notas: clique no ícone para abrir o painel flutuante do Bloco de Notas',
         ],
       },
       {
@@ -401,6 +414,451 @@ var AJUDA_SECOES = [
     ],
   },
   {
+    id: 'estoque',
+    icon: '📦',
+    titulo: 'Estoque & CMV',
+    subtitulo: 'Produtos, insumos, movimentações, CMV e Curva ABC',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O módulo de Estoque controla entradas e saídas de insumos/produtos, calcula o CMV (Custo das Mercadorias Vendidas) real e classifica os itens por impacto financeiro (Curva ABC). Tudo integrado ao financeiro.',
+      },
+      {
+        tipo: 'tabela',
+        titulo: '4 Abas do Módulo',
+        cols: ['Aba', 'O que faz'],
+        rows: [
+          ['📦 Produtos', 'Cadastro de todos os insumos com estoque atual, mínimo, custo médio e preço de venda'],
+          ['↕️ Movimentações', 'Histórico completo de entradas, saídas e ajustes com custo total por período'],
+          ['📊 CMV', 'CMV% do mês vs meta, gráfico 6 meses, ranking de custo por produto'],
+          ['🔢 Curva ABC', 'Classifica produtos por impacto no custo: A (80%), B (15%), C (5%)'],
+        ],
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Tipos de Item',
+        cols: ['Tipo', 'Uso'],
+        rows: [
+          ['Produto', 'Item vendável — aparece no Cardápio e tem preço de venda'],
+          ['Insumo', 'Matéria-prima usada na produção — controle de estoque interno'],
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Cadastrar Produto / Insumo',
+        items: [
+          'Acesse Estoque & CMV no menu lateral',
+          'Clique em "+ Produto"',
+          'Preencha: nome, categoria, tipo (produto/insumo), unidade (kg/un/L/etc.), custo médio, estoque atual e mínimo',
+          'Informe dados fiscais se necessário: NCM, CFOP, origem',
+          'Vincule ao fornecedor principal — opcional mas recomendado',
+          'Clique em "Criar"',
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Categorias Gerenciáveis',
+        items: [
+          'As categorias de estoque são editáveis — clique em "Categorias" no topo da página',
+          'Crie, renomeie ou exclua categorias conforme a realidade do seu negócio',
+          'Exemplos: Carnes, Bebidas, Laticínios, Embalagens, Higiene, Insumos de Cozinha',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Registrar Entrada (Compra)',
+        items: [
+          'Clique em "📥 Entrada" no produto desejado (ou no botão do header)',
+          'Selecione o produto, informe a quantidade e o custo unitário da nota',
+          'O sistema recalcula o custo médio ponderado automaticamente',
+          'Marque "Gerar conta a pagar" para criar a despesa vinculada no financeiro',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Registrar Saída (Consumo/Venda)',
+        items: [
+          'Clique em "📤 Saída" no produto',
+          'Informe a quantidade consumida ou vendida',
+          'O sistema debita do estoque e registra o custo na composição do CMV',
+          'Motivos disponíveis: Consumo/Venda, Perda/Vencimento, Devolução a fornecedor',
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'CMV — Como calcular',
+        items: [
+          'CMV Real = soma de (quantidade × custo unitário) de todas as SAÍDAS do mês',
+          'CMV% = CMV Real ÷ Receita Bruta × 100',
+          'Meta padrão food service: 28% a 35%',
+          'Configure sua meta no slider da aba CMV — o sistema mostra se está dentro ou fora',
+          'O custo médio ponderado garante precisão mesmo com compras a preços diferentes',
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Campos Fiscais (NF-e)',
+        items: [
+          'NCM: código de 8 dígitos da Nomenclatura Comum do Mercosul',
+          'CFOP: código fiscal da operação (ex: 5102 — venda dentro do estado)',
+          'Origem: nacional (0) ou importado (1-8)',
+          'Esses campos facilitam a emissão de NF-e em sistemas integrados',
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: '💡 Integração financeira: ao registrar uma entrada com "Gerar conta a pagar", a despesa aparece automaticamente na aba Despesas com a descrição da compra.',
+      },
+    ],
+  },
+  {
+    id: 'cardapio',
+    icon: '🍽️',
+    titulo: 'Cardápio',
+    subtitulo: 'Tabela de produtos, filtros e complementos',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O módulo de Cardápio gerencia todos os produtos vendáveis e complementos do seu negócio, com filtros por categoria e setor de impressão, além de controle de disponibilidade.',
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Abas do Cardápio',
+        cols: ['Aba', 'Conteúdo'],
+        rows: [
+          ['🍽️ Produtos', 'Todos os itens do cardápio com preço, categoria, setor de impressão e disponibilidade'],
+          ['➕ Complementos', 'Adicionais e opções de personalização — acréscimos, remoções, substituições'],
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Filtros Disponíveis',
+        items: [
+          'Busca por nome ou código do produto',
+          'Filtro por categoria (ex: Lanches, Bebidas, Sobremesas)',
+          'Filtro por setor de impressão (ex: Cozinha, Bar, Frituras)',
+          'Filtro por status: Ativo, Inativo ou Todos',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Cadastrar Produto no Cardápio',
+        items: [
+          'Na aba Produtos, clique em "+ Produto"',
+          'Preencha: nome, código, categoria, preço de venda e custo',
+          'Selecione o setor de impressão (onde o pedido será impresso)',
+          'Defina se está disponível ou indisponível (toggle)',
+          'Adicione complementos vinculados se necessário',
+          'Clique em "Criar"',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Cadastrar Complemento',
+        items: [
+          'Alterne para a aba "Complementos"',
+          'Clique em "+ Complemento"',
+          'Preencha: nome, código, categoria, preço e custo',
+          'Complementos podem ser gratuitos (preço 0) ou cobrados',
+          'Clique em "Criar"',
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: '💡 O setor de impressão define para qual impressora/KDS o pedido é enviado. Configure os setores em "Setores de Impressão" antes de cadastrar produtos.',
+      },
+    ],
+  },
+  {
+    id: 'kds',
+    icon: '📺',
+    titulo: 'KDS — Kitchen Display System',
+    subtitulo: 'Tela de pedidos para cozinha, setores e viewer',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O KDS (Kitchen Display System) é uma tela digital para a cozinha ou bar exibir os pedidos em tempo real, substituindo os comandos físicos. Cada setor pode ter seu próprio KDS.',
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Abas do Módulo KDS',
+        cols: ['Aba', 'Função'],
+        rows: [
+          ['📺 KDS', 'Lista e configura as telas KDS disponíveis — abre o viewer em tela cheia'],
+          ['📋 Pedidos', 'Gerenciamento de todos os pedidos: criar, editar, avançar status e fechar'],
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Configurar um KDS',
+        items: [
+          'Clique em "+ Novo KDS"',
+          'Dê um nome (ex: Cozinha Principal, Bar)',
+          'Selecione os setores de impressão que este KDS deve exibir',
+          'Configure a cor de fundo, colunas e auto-refresh',
+          'Clique em "Abrir Viewer" para abrir em tela cheia no dispositivo da cozinha',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Criar Pedido',
+        items: [
+          'Na aba Pedidos, clique em "+ Novo Pedido"',
+          'Selecione a mesa ou identifique o cliente',
+          'Adicione os itens do cardápio com quantidades',
+          'Adicione complementos e observações por item',
+          'Clique em "Confirmar" — o pedido aparece no KDS automaticamente',
+        ],
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Status do Pedido',
+        cols: ['Status', 'Significado'],
+        rows: [
+          ['🟡 Aguardando', 'Pedido recebido, ainda não iniciado'],
+          ['🔵 Em preparo', 'Cozinha iniciou o preparo'],
+          ['🟢 Pronto', 'Pedido pronto para entrega'],
+          ['✅ Entregue', 'Pedido entregue ao cliente'],
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Viewer — Tela da Cozinha',
+        items: [
+          'Abra o viewer em tela cheia no tablet ou monitor da cozinha',
+          'Pedidos são exibidos em cards coloridos por tempo de espera',
+          'Verde: até 10 min | Laranja: até 20 min | Vermelho: acima de 20 min',
+          'Toque no card para avançar o status do pedido',
+          'Auto-refresh configurável: atualiza de 10 em 10 segundos por padrão',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'impressoes',
+    icon: '🖨️',
+    titulo: 'Setores de Impressão',
+    subtitulo: 'Configuração de impressoras, setores e modelo de cupom',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O módulo de Setores de Impressão permite configurar diferentes impressoras para diferentes áreas do negócio (cozinha, bar, caixa) e personalizar o modelo do cupom fiscal/não-fiscal.',
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Abas do Módulo',
+        cols: ['Aba', 'Função'],
+        rows: [
+          ['🏷️ Setores', 'Cadastro dos setores de impressão: nome, impressora, largura do papel e comportamento'],
+          ['⚙️ Config', 'Configurações globais da impressora: logo, CNPJ, endereço, observações'],
+          ['📄 Modelo', 'Editor visual do cupom — preview em tempo real do que será impresso'],
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Criar Setor de Impressão',
+        items: [
+          'Na aba Setores, clique em "+ Novo Setor"',
+          'Dê um nome ao setor (ex: Cozinha, Bar, Caixa)',
+          'Selecione a impressora ou IP da impressora de rede',
+          'Defina a largura do papel: 58mm ou 80mm',
+          'Configure se imprime automaticamente ao receber pedidos',
+          'Clique em "Salvar"',
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Configurações do Cupom',
+        items: [
+          'Logo da empresa: URL da imagem (recomendado: PNG com fundo branco)',
+          'Mostrar CNPJ, endereço e telefone no cabeçalho',
+          'Mensagem personalizada no rodapé (ex: "Obrigado pela preferência!")',
+          'Data e hora de emissão, número do pedido e identificador da mesa',
+          'Preview ao vivo: veja exatamente como o cupom será impresso',
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: '💡 Impressoras térmicas Bluetooth (como a Datecs, Epson TM ou similares) funcionam via WebBluetooth no Chrome. Acesse em HTTPS ou localhost para ativar o recurso.',
+      },
+    ],
+  },
+  {
+    id: 'empresa',
+    icon: '🏢',
+    titulo: 'Dados da Empresa',
+    subtitulo: 'Cadastro completo por perfil',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O módulo Dados da Empresa armazena todas as informações institucionais do perfil atual, usadas em cupons, relatórios e cabeçalhos de documentos.',
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Informações Cadastradas',
+        cols: ['Campo', 'Uso'],
+        rows: [
+          ['Nome Fantasia / Razão Social', 'Identificação da empresa em todos os documentos'],
+          ['CNPJ / IE / IM', 'Dados fiscais para emissão de notas e cupons'],
+          ['Endereço completo', 'Exibido no cabeçalho do cupom e no mapa'],
+          ['Telefone / Celular / E-mail', 'Contatos exibidos no cupom e em relatórios'],
+          ['PIX e dados bancários', 'Dados para cobrança e recebimento'],
+          ['Redes sociais', 'Instagram, Facebook, site — exibidos no cupom'],
+          ['Horário de funcionamento', 'Informação para o cliente'],
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Atualizar Dados da Empresa',
+        items: [
+          'Acesse "Empresa" no menu lateral (seção Sistema)',
+          'Preencha ou atualize os campos desejados',
+          'O logo pode ser definido por URL ou upload de imagem',
+          'Clique em "Salvar" — as alterações são aplicadas imediatamente em cupons e relatórios',
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: '💡 Cada perfil tem seus próprios dados de empresa. Se você gerencia múltiplos negócios, os dados são isolados por perfil.',
+      },
+    ],
+  },
+  {
+    id: 'notas',
+    icon: '📝',
+    titulo: 'Bloco de Notas',
+    subtitulo: 'Anotações rápidas com editor e cores',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O Bloco de Notas permite criar anotações livres, lembretes e textos importantes. Cada nota tem título editável, conteúdo livre, cor identificadora e salvamento automático.',
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Dois modos de acesso',
+        items: [
+          'Painel flutuante: clique no ícone 📝 na topbar para abrir um painel sem sair da tela atual',
+          'Página completa: acesse "Bloco de Notas" no menu lateral para o editor expandido',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Criar uma Nota',
+        items: [
+          'Clique em "+ Nova nota" ou no botão + na barra lateral do módulo',
+          'A nota é criada com título "Nova nota" — clique no título para renomear',
+          'Digite o conteúdo na área de texto — salvamento automático após 800ms de inatividade',
+          'Escolha uma cor clicando nos círculos coloridos na toolbar',
+        ],
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Funcionalidades',
+        cols: ['Recurso', 'Como usar'],
+        rows: [
+          ['Auto-save', 'Conteúdo salvo automaticamente 0,8s após parar de digitar'],
+          ['Cores', '8 cores disponíveis para identificar visualmente as notas'],
+          ['Ordenação', 'Notas ordenadas por data de atualização — mais recentes no topo'],
+          ['Exclusão', 'Botão 🗑 na toolbar — confirmação antes de excluir'],
+          ['Contador', 'Status bar exibe contagem de palavras e caracteres'],
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: '📝 As notas são separadas por perfil — cada perfil tem seu próprio conjunto de notas isoladas.',
+      },
+    ],
+  },
+  {
+    id: 'mapa',
+    icon: '🗺️',
+    titulo: 'Mapa Interativo',
+    subtitulo: 'OpenStreetMap com pesquisa e marcadores',
+    conteudo: [
+      {
+        tipo: 'intro',
+        texto: 'O Mapa Interativo usa OpenStreetMap para exibir um mapa navegável com sua localização atual, pesquisa por endereços e marcadores personalizados.',
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Funcionalidades do Mapa',
+        items: [
+          '📍 Localização atual: marcador azul mostra onde você está (requer permissão de GPS)',
+          '🔍 Pesquisa: digite um endereço, cidade ou ponto de interesse e pressione Enter',
+          '📌 Marcadores: clique em qualquer ponto do mapa para adicionar um pin',
+          '↕️ Arrastar pins: mova os marcadores para ajustar a posição',
+          '🗑 Limpar pins: botão "Limpar pins" remove todos os marcadores da sessão',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Pesquisar um Endereço',
+        items: [
+          'Digite o endereço, nome do local ou cidade no campo de pesquisa',
+          'Pressione Enter ou clique em "Buscar"',
+          'O mapa centraliza no resultado e adiciona um marcador de pesquisa',
+          'Para pesquisar outro local, basta digitar novamente',
+        ],
+      },
+      {
+        tipo: 'steps',
+        titulo: 'Ir para sua Localização',
+        items: [
+          'Clique no botão 📍 ao lado da barra de pesquisa',
+          'Se já houver localização detectada, o mapa centraliza imediatamente',
+          'Se não houver, o sistema solicita permissão de GPS ao dispositivo',
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: '💡 O mapa centraliza automaticamente na cidade da empresa cadastrada em "Dados da Empresa" ou na sua localização GPS detectada pela topbar.',
+      },
+    ],
+  },
+  {
+    id: 'tarefas',
+    icon: '✅',
+    titulo: 'Tarefas & Agenda',
+    subtitulo: 'Compromissos, lembretes e calendário',
+    conteudo: [
+      {
+        tipo: 'steps',
+        titulo: 'Criar Tarefa',
+        items: [
+          'Clique em "+ Nova tarefa"',
+          'Preencha: título, data, prioridade e descrição',
+          'Defina o status inicial (pendente, em andamento)',
+        ],
+      },
+      {
+        tipo: 'tabela',
+        titulo: 'Status das Tarefas',
+        cols: ['Status', 'Uso'],
+        rows: [
+          ['🔵 Pendente', 'Ainda não iniciada'],
+          ['🟡 Em andamento', 'Em execução'],
+          ['🟢 Concluída', 'Finalizada'],
+          ['🔴 Cancelada', 'Não será realizada'],
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: 'Calendário com pontos de tarefas',
+        items: [
+          'Clique no ícone 📅 na topbar para abrir o mini-calendário flutuante',
+          'Dias com tarefas pendentes exibem um ponto dourado abaixo da data',
+          'O dia atual aparece destacado em dourado',
+          'Use ‹ e › para navegar entre meses sem sair da tela atual',
+          'Clique em um dia com ponto para ir diretamente à lista de tarefas daquele dia',
+        ],
+      },
+      {
+        tipo: 'tip',
+        texto: 'O ícone 📅 na topbar abre um mini-calendário. Dias com tarefas pendentes aparecem com um ponto dourado.',
+      },
+    ],
+  },
+  {
     id: 'relatorios',
     icon: '📤',
     titulo: 'Relatórios e Exportação',
@@ -447,38 +905,6 @@ var AJUDA_SECOES = [
           'No Excel: Dados → De Texto/CSV → selecione o arquivo',
           'Escolha delimitador vírgula e codificação UTF-8',
         ],
-      },
-    ],
-  },
-  {
-    id: 'tarefas',
-    icon: '✅',
-    titulo: 'Tarefas & Agenda',
-    subtitulo: 'Compromissos e lembretes',
-    conteudo: [
-      {
-        tipo: 'steps',
-        titulo: 'Criar Tarefa',
-        items: [
-          'Clique em "+ Nova tarefa"',
-          'Preencha: título, data, prioridade e descrição',
-          'Defina o status inicial (pendente, em andamento)',
-        ],
-      },
-      {
-        tipo: 'tabela',
-        titulo: 'Status das Tarefas',
-        cols: ['Status', 'Uso'],
-        rows: [
-          ['🔵 Pendente', 'Ainda não iniciada'],
-          ['🟡 Em andamento', 'Em execução'],
-          ['🟢 Concluída', 'Finalizada'],
-          ['🔴 Cancelada', 'Não será realizada'],
-        ],
-      },
-      {
-        tipo: 'tip',
-        texto: 'O ícone 📅 na topbar abre um mini-calendário. Dias com tarefas pendentes aparecem com um ponto dourado.',
       },
     ],
   },
@@ -556,6 +982,8 @@ var AJUDA_SECOES = [
           'Criação e edição de recorrências',
           'Criação e edição de usuários',
           'Exportação e restauração de backups',
+          'Movimentações de estoque (entradas e saídas)',
+          'Criação e edição de pedidos e produtos do cardápio',
         ],
       },
       {
@@ -565,95 +993,17 @@ var AJUDA_SECOES = [
     ],
   },
   {
-    id: 'estoque',
-    icon: '📦',
-    titulo: 'Estoque & CMV',
-    subtitulo: 'Produtos, movimentações, CMV e Curva ABC',
-    conteudo: [
-      {
-        tipo: 'intro',
-        texto: 'O módulo de Estoque controla entradas e saídas de insumos/produtos, calcula o CMV (Custo das Mercadorias Vendidas) real e classifica os itens por impacto financeiro (Curva ABC). Tudo integrado ao financeiro.',
-      },
-      {
-        tipo: 'tabela',
-        titulo: '4 Abas do Módulo',
-        cols: ['Aba', 'O que faz'],
-        rows: [
-          ['📦 Produtos', 'Cadastro de todos os insumos com estoque atual, mínimo, custo médio e preço de venda'],
-          ['↕️ Movimentações', 'Histórico completo de entradas, saídas e ajustes com custo total por período'],
-          ['📊 CMV', 'CMV% do mês vs meta, gráfico 6 meses, ranking de custo por produto'],
-          ['🔢 Curva ABC', 'Classifica produtos por impacto no custo: A (80%), B (15%), C (5%)'],
-        ],
-      },
-      {
-        tipo: 'steps',
-        titulo: 'Cadastrar Produto / Insumo',
-        items: [
-          'Acesse Estoque & CMV no menu lateral (seção Financeiro)',
-          'Clique em "+ Produto"',
-          'Preencha: nome, categoria, unidade (kg/un/L/etc.), custo médio, estoque atual e mínimo',
-          'Vincule ao fornecedor principal — opcional mas recomendado',
-          'Clique em "Criar"',
-        ],
-      },
-      {
-        tipo: 'steps',
-        titulo: 'Registrar Entrada (Compra)',
-        items: [
-          'Clique em "📥 Entrada" no produto desejado (ou no botão do header)',
-          'Selecione o produto, informe a quantidade e o custo unitário da nota',
-          'O sistema recalcula o custo médio ponderado automaticamente',
-          'Marque "Gerar conta a pagar" para criar a despesa vinculada no financeiro',
-        ],
-      },
-      {
-        tipo: 'steps',
-        titulo: 'Registrar Saída (Consumo/Venda)',
-        items: [
-          'Clique em "📤 Saída" no produto',
-          'Informe a quantidade consumida ou vendida',
-          'O sistema debita do estoque e registra o custo na composição do CMV',
-          'Motivos disponíveis: Consumo/Venda, Perda/Vencimento, Devolução a fornecedor',
-        ],
-      },
-      {
-        tipo: 'lista',
-        titulo: 'CMV — Como calcular',
-        items: [
-          'CMV Real = soma de (quantidade × custo unitário) de todas as SAÍDAS do mês',
-          'CMV% = CMV Real ÷ Receita Bruta × 100',
-          'Meta padrão food service: 28% a 35%',
-          'Configure sua meta no slider da aba CMV — o sistema mostra se está dentro ou fora',
-          'O custo médio ponderado garante precisão mesmo com compras a preços diferentes',
-        ],
-      },
-      {
-        tipo: 'lista',
-        titulo: 'Curva ABC — Como usar',
-        items: [
-          'Classe A: ~20% dos produtos mas 80% do custo — controle rigoroso e negociação com fornecedores',
-          'Classe B: 15% do custo — revisão semanal suficiente',
-          'Classe C: 5% do custo — compra em volume, controle simplificado',
-          'Selecione o período de análise: 1, 3, 6 ou 12 meses',
-        ],
-      },
-      {
-        tipo: 'tip',
-        texto: '💡 Integração financeira: ao registrar uma entrada com "Gerar conta a pagar", a despesa aparece automaticamente na aba Despesas com a descrição da compra.',
-      },
-    ],
-  },
-  {
     id: 'atalhos',
     icon: '⚡',
     titulo: 'Atalhos da Topbar',
-    subtitulo: 'Calculadora, calendário e FAB',
+    subtitulo: 'Calculadora, calendário, notas e FAB',
     conteudo: [
       {
         tipo: 'lista',
         titulo: '🧮 Calculadora',
         items: [
           'Clique no ícone 🧮 na barra superior para abrir a calculadora flutuante estilo iOS',
+          'Suporte a teclado físico: digite os números e operadores diretamente pelo teclado',
           'Suporta as 4 operações: +, −, ×, ÷ e encadeia operações em sequência',
           'AC limpa tudo | C limpa o último número | % converte para porcentagem',
           'Clique fora ou no ícone novamente para fechar',
@@ -667,6 +1017,17 @@ var AJUDA_SECOES = [
           'O dia atual aparece destacado em dourado',
           'Dias com tarefas pendentes têm um ponto dourado abaixo da data',
           'Use ‹ e › para navegar entre meses',
+          'Clique em um dia com ponto para filtrar as tarefas daquele dia',
+        ],
+      },
+      {
+        tipo: 'lista',
+        titulo: '📝 Bloco de Notas (painel)',
+        items: [
+          'Clique no ícone 📝 na barra superior para abrir o painel flutuante de notas',
+          'Crie e edite notas sem sair da tela atual',
+          'Clique em "+ Nova" para criar uma nota rapidamente',
+          'Feche clicando fora do painel ou no mesmo ícone',
         ],
       },
       {
@@ -779,6 +1140,7 @@ function renderAjuda() {
   var cards = AJUDA_SECOES.map(function(s) {
     var isOpen = _ajudaSecao === s.id;
     return el('div', {
+      id: 'ajuda-sec-'+s.id,
       style:{
         background:'var(--bg2)',
         border:'1px solid '+(isOpen?'var(--gold)':'var(--border)'),
@@ -834,7 +1196,7 @@ function renderAjuda() {
   // Busca rápida
   var buscaInp = el('input', {
     class: 'form-input',
-    placeholder: '🔍 Buscar no manual... (ex: backup, PIN, cartão)',
+    placeholder: '🔍 Buscar no manual... (ex: backup, PIN, cardápio, KDS)',
     value: '',
     style: {marginBottom:'16px'},
     oninput: function() {
@@ -891,7 +1253,7 @@ function renderAjuda() {
     el('div', {class:'page-header'}, [
       el('div', {}, [
         el('h2', {class:'page-title'}, '❓ Central de Ajuda'),
-        el('p', {class:'page-sub'}, 'Guia completo de operação — v1.1.1'),
+        el('p', {class:'page-sub'}, 'Guia completo de operação — v2.0.0'),
       ]),
     ]),
 

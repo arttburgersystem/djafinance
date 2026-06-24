@@ -468,6 +468,10 @@ var state={
   navSectionsCollapsed: lsGet('navSectionsCollapsed', {}),
   calcOpen: false,
   calOpen: false,
+  notaOpen: false,
+  notas: lsGet('notas',[]),
+  notaAtualId: null,
+  _notaCorPicker: null,
   calMes: nowBR().getMonth(),
   calAno: nowBR().getFullYear(),
   buscaModal: false,
@@ -1010,11 +1014,13 @@ function renderSidebar(){
     {id:'planejamento',label:'Metas',icon:'🎯',section:'planejamento'},
     {id:'alertas',label:'Alertas',icon:'🔔',section:'planejamento'},
     {id:'recorrencias',label:'Recorrências',icon:'🔄',section:'planejamento'},
-    {id:'estoque',label:'Estoque & CMV',icon:'📦',section:'financeiro'},
-    {id:'cardapio',label:'Cardápio',icon:'🍽️',section:'financeiro'},
-    {id:'impressoes',label:'Setores de Impressão',icon:'🖨️',section:'financeiro'},
     {id:'exportar',label:'Relatórios',icon:'📊',section:'integração'},
+    {id:'notas',label:'Bloco de Notas',icon:'📝',section:'planejamento'},
+    {id:'estoque',label:'Estoque & CMV',icon:'📦',section:'sistema'},
+    {id:'cardapio',label:'Cardápio',icon:'🍽️',section:'sistema'},
+    {id:'impressoes',label:'Setores de Impressão',icon:'🖨️',section:'sistema'},
     {id:'kds',label:'KDS',icon:'📺',section:'sistema'},
+    {id:'mapa',label:'Mapa',icon:'🗺️',section:'sistema'},
     {id:'empresa',label:'Dados da Empresa',icon:'🏢',section:'sistema'},
     {id:'usuarios',label:'Usuários & Permissões',icon:'🔐',section:'sistema'},
     {id:'auditoria',label:'Auditoria',icon:'📋',section:'sistema'},
@@ -1168,14 +1174,16 @@ function renderSidebar(){
 // ── TOPBAR ────────────────────────────────────────────────────────────────────
 function renderTopbar(){
   var pf=PROFILES.find(function(p){return p.id===state.profile;});
-  var titles={dashboard:'Visão geral',bancos:'Bancos e Contas',receitas:'Receitas',dre:'DRE — Resultado',vendas:'Vendas do Dia',pagar:'Despesas',receber:'Contas a receber',fluxo:'Fluxo de caixa',orcamento:'Orçamento vs Realizado',planejamento:'Metas e Objetivos',alertas:'Alertas',exportar:'Relatórios e Exportação',cartoes:'Cartões de Crédito',tarefas:'Tarefas & Agenda',emprestimos:'Empréstimos',fornecedores:'Fornecedores',funcionarios:'Funcionários',usuarios:'Usuários & Permissões',recorrencias:'Recorrências',auditoria:'Auditoria do Sistema',ajuda:'Central de Ajuda',estoque:'Estoque & CMV',cardapio:'Cardápio',impressoes:'Setores de Impressão'};
+  var titles={dashboard:'Visão geral',bancos:'Bancos e Contas',receitas:'Receitas',dre:'DRE — Resultado',vendas:'Vendas do Dia',pagar:'Despesas',receber:'Contas a receber',fluxo:'Fluxo de caixa',orcamento:'Orçamento vs Realizado',planejamento:'Metas e Objetivos',alertas:'Alertas',exportar:'Relatórios e Exportação',cartoes:'Cartões de Crédito',tarefas:'Tarefas & Agenda',emprestimos:'Empréstimos',fornecedores:'Fornecedores',funcionarios:'Funcionários',usuarios:'Usuários & Permissões',recorrencias:'Recorrências',auditoria:'Auditoria do Sistema',ajuda:'Central de Ajuda',estoque:'Estoque & CMV',cardapio:'Cardápio',impressoes:'Setores de Impressão',kds:'KDS — Kitchen Display',empresa:'Dados da Empresa',notas:'Bloco de Notas',mapa:'Mapa'};
 
   var hamburger=el('button',{class:'mobile-topbar-btn',onclick:function(){setState({sidebarOpen:!state.sidebarOpen,calcOpen:false,calOpen:false});}},state.sidebarOpen?'✕':'☰');
 
-  // Atalhos de apps
-  var calcBtn=el('button',{class:'topbar-app-btn'+(state.calcOpen?' active':''),title:'Calculadora',onclick:function(){setState({calcOpen:!state.calcOpen,calOpen:false});}}, '🧮');
-  var calBtn=el('button',{class:'topbar-app-btn'+(state.calOpen?' active':''),title:'Calendário',onclick:function(){setState({calOpen:!state.calOpen,calcOpen:false});}}, '📅');
-  var appsEl=el('div',{class:'topbar-apps'},[calcBtn,calBtn]);
+  // Touch Bar — atalhos de apps
+  var calcBtn=el('button',{class:'topbar-app-btn'+(state.calcOpen?' active':''),title:'Calculadora (Touch Bar)',onclick:function(){setState({calcOpen:!state.calcOpen,calOpen:false,notaOpen:false});}}, '🧮');
+  var calBtn=el('button',{class:'topbar-app-btn'+(state.calOpen?' active':''),title:'Calendário (Touch Bar)',onclick:function(){setState({calOpen:!state.calOpen,calcOpen:false,notaOpen:false});}}, '📅');
+  var notaBtn=el('button',{class:'topbar-app-btn'+(state.notaOpen?' active':''),title:'Bloco de Notas (Touch Bar)',onclick:function(){setState({notaOpen:!state.notaOpen,calcOpen:false,calOpen:false});}}, '📝');
+  var mapaBtn=el('button',{class:'topbar-app-btn',title:'Mapa',onclick:function(){setState({page:'mapa',calcOpen:false,calOpen:false,notaOpen:false});}}, '🗺️');
+  var appsEl=el('div',{class:'topbar-apps'},[calcBtn,calBtn,notaBtn,mapaBtn]);
 
   // Widget clima/localização
   var weatherEl=el('div',{id:'djf-weather',style:{display:'inline-flex',alignItems:'center',gap:'3px'}});
@@ -2025,6 +2033,32 @@ function _calcKey(key){
   });
 }
 
+// Suporte a teclado para a calculadora
+document.addEventListener('keydown',function(e){
+  if(!state||!state.calcOpen)return;
+  var tag=(document.activeElement||{}).tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+  var k=e.key;
+  if(k>='0'&&k<='9'){e.preventDefault();_calcKey(k);}
+  else if(k==='+'){e.preventDefault();_calcKey('+');}
+  else if(k==='-'){e.preventDefault();_calcKey('-');}
+  else if(k==='*'){e.preventDefault();_calcKey('×');}
+  else if(k==='/'){e.preventDefault();_calcKey('÷');}
+  else if(k==='Enter'||k==='='){e.preventDefault();_calcKey('=');}
+  else if(k==='.'||k===','){e.preventDefault();_calcKey('.');}
+  else if(k==='Backspace'){
+    e.preventDefault();
+    var c2=_calc;
+    if(!c2.fresh&&c2.display.length>1){c2.display=c2.display.slice(0,-1);}
+    else{c2.display='0';c2.fresh=true;}
+    var d2=document.getElementById('djf-calc-d');if(d2)d2.textContent=_calcFmt(c2.display);
+    var acBtn2=document.getElementById('djf-calc-ac');if(acBtn2)acBtn2.textContent=c2.display==='0'&&!c2.stored?'AC':'C';
+  }
+  else if(k==='Escape'){e.preventDefault();_calcKey('AC');}
+  else if(k==='Delete'){e.preventDefault();_calcKey('C');}
+  else if(k==='%'){e.preventDefault();_calcKey('%');}
+});
+
 function renderCalcPanel(){
   var c=_calc;
   function k(label,cls,id){
@@ -2107,7 +2141,7 @@ function renderCalPanel(){
   ]);
 }
 
-// ── MOBILE BOTTOM NAV ─────────────────────────────────────────────────────────
+// ── TOUCH BAR (mobile bottom nav) ────────────────────────────────────────────
 function renderMobileNav(){
   var pf=state.profile;
   var tabs=[
@@ -2151,7 +2185,7 @@ function render(){
     return;
   }
 
-  var pages={dashboard:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,cartoes:renderCartoes,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas,usuarios:renderUsuarios,recorrencias:renderRecorrencias,auditoria:renderAuditoria,ajuda:renderAjuda,estoque:renderEstoque,empresa:renderEmpresa,cardapio:renderCardapio,impressoes:renderImpressoes,kds:renderKDS};
+  var pages={dashboard:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,cartoes:renderCartoes,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas,usuarios:renderUsuarios,recorrencias:renderRecorrencias,auditoria:renderAuditoria,ajuda:renderAjuda,estoque:renderEstoque,empresa:renderEmpresa,cardapio:renderCardapio,impressoes:renderImpressoes,kds:renderKDS,notas:renderNotas,mapa:renderMapa};
   var pageContent=(pages[state.page]||renderDashboard)();
   var content=div('content',[pageContent]);
   var mainCls='main'+(state.sidebarCollapsed?' sb-collapsed':'');
@@ -2162,12 +2196,13 @@ function render(){
   app.appendChild(renderMobileNav());
   // FAB mobile
   app.appendChild(renderFAB());
-  // Painéis flutuantes de apps
-  if(state.calcOpen||state.calOpen){
-    var fbk=el('div',{class:'float-backdrop',onclick:function(){setState({calcOpen:false,calOpen:false});}});
+  // Painéis flutuantes de apps (Touch Bar)
+  if(state.calcOpen||state.calOpen||state.notaOpen){
+    var fbk=el('div',{class:'float-backdrop',onclick:function(){setState({calcOpen:false,calOpen:false,notaOpen:false});}});
     app.appendChild(fbk);
     if(state.calcOpen)app.appendChild(renderCalcPanel());
     if(state.calOpen)app.appendChild(renderCalPanel());
+    if(state.notaOpen&&typeof renderNotaPanel==='function')app.appendChild(renderNotaPanel());
   }
 
   var modal=renderModal();
@@ -2226,6 +2261,8 @@ function render(){
 <script src="js/page-recorrencias.js"></script>
 <script src="js/page-auditoria.js"></script>
 <script src="js/page-ajuda.js"></script>
+<script src="js/page-notas.js"></script>
+<script src="js/page-mapa.js"></script>
 <script src="js/page-estoque.js"></script>
 <script src="js/page-empresa.js"></script>
 <script src="js/page-impressoes.js"></script>
