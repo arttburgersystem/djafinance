@@ -986,46 +986,66 @@ function renderEstProdutos() {
     var margem  = (p.precoVenda>0&&p.custoMedio>0) ? ((1-p.custoMedio/p.precoVenda)*100).toFixed(1)+'%' : null;
     var vlTotal = (p.estoqueAtual||0)*(p.custoMedio||0);
 
-    return el('div',{class:'card',style:{padding:'14px'}},[
-      el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'10px'}},[
+    return el('div',{class:'card',style:{padding:'14px',display:'flex',flexDirection:'column',gap:'0'}},[
+
+      // ── Cabeçalho: nome + badge status ──
+      el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}},[
+        el('div',{style:{flex:'1',minWidth:'0',paddingRight:'8px'}},[
+          el('div',{style:{fontWeight:'700',fontSize:'13px',color:'var(--text)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},p.nome),
+          el('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'2px'}},'#INSUMOS · '+p.unidade),
+        ]),
+        el('div',{style:{flexShrink:'0',textAlign:'right'}},[
+          el('span',{style:{fontSize:'10px',fontWeight:'700',color:cor,background:status==='ok'?'rgba(79,193,133,.12)':status==='critico'?'rgba(192,57,43,.12)':'var(--bg3)',padding:'2px 7px',borderRadius:'10px',border:'1px solid '+cor}},lbl),
+        ]),
+      ]),
+
+      // ── Estoque atual + barra ──
+      el('div',{style:{marginBottom:'8px'}},[
+        el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'4px'}},[
+          el('span',{style:{fontSize:'11px',color:'var(--text3)'}},'Estoque atual'),
+          el('span',{style:{fontSize:'13px',fontWeight:'800',color:cor}},formatQtd(p.estoqueAtual,p.unidade)),
+        ]),
+        p.estoqueMinimo>0 ? el('div',{style:{height:'5px',background:'var(--bg3)',borderRadius:'3px',overflow:'hidden',marginBottom:'3px'}},[
+          el('div',{style:{height:'100%',width:pct+'%',background:cor,borderRadius:'3px',transition:'width .3s'}}),
+        ]) : null,
+        p.estoqueMinimo>0 ? el('div',{style:{fontSize:'10px',color:'var(--text3)'}},'Mínimo: '+formatQtd(p.estoqueMinimo,p.unidade)) : null,
+      ].filter(Boolean)),
+
+      // ── SKU (linha separada, limpa) ──
+      p.sku ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'6px',fontFamily:'monospace',background:'var(--bg3)',borderRadius:'4px',padding:'2px 6px',display:'inline-block'}},'SKU: '+p.sku) : null,
+
+      // ── Custo + Valor total ──
+      el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px',marginBottom:'6px',
+        background:'var(--bg3)',borderRadius:'6px',padding:'7px 10px',fontSize:'11px'}},[
         el('div',{},[
-          el('div',{style:{fontWeight:'700',fontSize:'13px',color:'var(--text)'}},p.nome),
-          el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px'}},p.categoria+' · '+p.unidade),
+          el('div',{style:{color:'var(--text3)',marginBottom:'1px'}},'Custo unit.'),
+          el('div',{style:{fontWeight:'700',color:'var(--text)',fontSize:'12px'}},fmtMoney(p.custoMedio||0)),
         ]),
         el('div',{style:{textAlign:'right'}},[
-          el('div',{style:{fontSize:'11px',fontWeight:'700',color:cor}},lbl),
-          margem ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'2px'}},'Margem: '+margem) : null,
-        ].filter(Boolean)),
-      ]),
-      el('div',{style:{marginBottom:'10px'}},[
-        el('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'11px',color:'var(--text3)',marginBottom:'3px'}},[
-          el('span',{},'Estoque atual'),
-          el('span',{style:{fontWeight:'700',color:cor}},formatQtd(p.estoqueAtual,p.unidade)),
+          el('div',{style:{color:'var(--text3)',marginBottom:'1px'}},'Total em estoque'),
+          el('div',{style:{fontWeight:'700',color:'var(--gold)',fontSize:'12px'}},fmtMoney(vlTotal)),
         ]),
-        p.estoqueMinimo>0 ? el('div',{style:{height:'5px',background:'var(--bg3)',borderRadius:'3px',overflow:'hidden'}},[
-          el('div',{style:{height:'100%',width:pct+'%',background:cor,borderRadius:'3px'}}),
-        ]) : null,
-        p.estoqueMinimo>0 ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'2px'}},'Mínimo: '+formatQtd(p.estoqueMinimo,p.unidade)) : null,
-        p.sku ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'2px'}},'SKU: '+p.sku) : null,
-      ].filter(Boolean)),
-      el('div',{style:{display:'flex',gap:'12px',fontSize:'12px',color:'var(--text3)',marginBottom:'6px',flexWrap:'wrap'}},[
-        el('span',{},'Custo unit.: '),el('strong',{style:{color:'var(--text)'}},fmtMoney(p.custoMedio||0)),
-        el('span',{},'  Total: '),el('strong',{style:{color:'var(--gold)'}},fmtMoney(vlTotal)),
-      ].filter(Boolean)),
-      (p.qtdPorEmbalagem>0&&p.precoEmbalagem>0) ? el('div',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'6px'}},
-        '📦 '+formatQtd(p.qtdPorEmbalagem,p.unidade)+'/emb · '+fmtMoney(p.precoEmbalagem)+'/emb') : null,
-      el('div',{style:{display:'flex',gap:'6px'}},[
-        el('button',{class:'btn-secondary',style:{flex:'1',fontSize:'12px',padding:'6px'},onclick:function(){
+      ]),
+
+      // ── Embalagem (se configurada) ──
+      (p.qtdPorEmbalagem>0&&p.precoEmbalagem>0) ? el('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'6px',display:'flex',alignItems:'center',gap:'4px'}},[
+        el('span',{},'📦'),
+        el('span',{},fmtMoney(p.precoEmbalagem)+'/emb · '+p.qtdPorEmbalagem+' '+p.unidade+'/emb'),
+      ]) : null,
+
+      // ── Botões ──
+      el('div',{style:{display:'flex',gap:'5px',marginTop:'auto',paddingTop:'4px'}},[
+        el('button',{class:'btn-secondary',style:{flex:'1',fontSize:'11px',padding:'5px 4px'},onclick:function(){
           var cu=p.custoMedio||(p.qtdPorEmbalagem>0&&p.precoEmbalagem>0?Math.round(p.precoEmbalagem/p.qtdPorEmbalagem*10000)/10000:0);
           setState({movModal:{tipo:'entrada',produto_id:p.id,custoUnitario:cu,data:today()}});
         }},'📥 Entrada'),
-        el('button',{class:'btn-ghost',style:{flex:'1',fontSize:'12px',padding:'6px',color:'var(--danger)'},onclick:function(){
+        el('button',{class:'btn-ghost',style:{flex:'1',fontSize:'11px',padding:'5px 4px',color:'var(--danger)'},onclick:function(){
           setState({movModal:{tipo:'saida',produto_id:p.id,data:today()}});
         }},'📤 Saída'),
-        el('button',{class:'btn-ghost',style:{fontSize:'12px',padding:'6px'},onclick:function(){
+        el('button',{class:'btn-ghost',style:{fontSize:'11px',padding:'5px 8px'},title:'Editar',onclick:function(){
           setState({produtoModal:JSON.parse(JSON.stringify(p))});
         }},'✏️'),
-        el('button',{class:'btn-ghost',style:{fontSize:'12px',padding:'6px',color:'var(--danger)'},onclick:function(){
+        el('button',{class:'btn-ghost',style:{fontSize:'11px',padding:'5px 8px',color:'var(--danger)'},title:'Inativar',onclick:function(){
           if(!confirm('Inativar "'+p.nome+'"? Movimentações são mantidas.'))return;
           var np=state.produtos.map(function(x){return x.id===p.id?Object.assign({},x,{ativo:false}):x;});
           logAudit('inativou produto',p.nome);
