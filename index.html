@@ -786,7 +786,7 @@ function addPeriodo(d,tipo,n){
   return dt.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
 }
 function runRecorrencia(){
-  var limite=nowBR();limite.setMonth(limite.getMonth()+2);
+  var limite=nowBR();limite.setMonth(limite.getMonth()+13);
   var limitStr=limite.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
   var recorrentes=state.contas.filter(function(c){return c.recorrente&&!c.gerado_de;});
   var novas=[];
