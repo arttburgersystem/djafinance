@@ -1503,6 +1503,8 @@ function renderNFModal() {
         if(it.qtdEmb>0 && u>0){it.quantidade=it.qtdEmb*u; qtdInp.value=it.quantidade;}
         rowTotalEl.textContent = fmtMoney(totalItem(it));
         grandTotalEl.textContent = fmtMoney(totalNF());
+        if(m.valorRealNF){var _i2=m.valorRealNF-totalNF();impostosEl.textContent=(_i2>=0?'+ ':'-')+fmtMoney(Math.abs(_i2));impostosEl.style.color=_i2>0.01?'var(--gold)':_i2<-0.01?'var(--danger)':'var(--text3)';impostosRowEl.style.display=Math.abs(_i2)>0.005?'flex':'none';}
+        totalRealEl.textContent = fmtMoney(m.valorRealNF||totalNF());
       }});
 
     var unidPorEmbInp = el('input',{type:'number',class:'form-input',style:{fontSize:'12px',width:'72px'},
@@ -1512,6 +1514,8 @@ function renderNFModal() {
         if((parseFloat(it.qtdEmb)||0)>0 && it.unidPorEmb>0){it.quantidade=it.qtdEmb*it.unidPorEmb; qtdInp.value=it.quantidade;}
         rowTotalEl.textContent = fmtMoney(totalItem(it));
         grandTotalEl.textContent = fmtMoney(totalNF());
+        if(m.valorRealNF){var _i2=m.valorRealNF-totalNF();impostosEl.textContent=(_i2>=0?'+ ':'-')+fmtMoney(Math.abs(_i2));impostosEl.style.color=_i2>0.01?'var(--gold)':_i2<-0.01?'var(--danger)':'var(--text3)';impostosRowEl.style.display=Math.abs(_i2)>0.005?'flex':'none';}
+        totalRealEl.textContent = fmtMoney(m.valorRealNF||totalNF());
       }});
 
     var qtdInp = el('input',{type:'number',class:'form-input',style:{fontSize:'12px',width:'80px'},
@@ -1544,8 +1548,36 @@ function renderNFModal() {
     ]);
   }
 
-  // Grand total element (shared ref for live update)
-  var grandTotalEl = el('span',{style:{fontWeight:'800',color:'var(--gold)',fontSize:'18px'}},fmtMoney(totalNF()));
+  // Grand total elements (shared refs for live DOM update)
+  var grandTotalEl    = el('span',{style:{fontWeight:'700',color:'var(--text2)',fontSize:'14px'}},fmtMoney(totalNF()));
+  var impostosEl      = el('span',{style:{fontWeight:'700',color:'var(--gold)',fontSize:'13px'}},'R$ 0,00');
+  var totalRealEl     = el('span',{style:{fontWeight:'800',color:'var(--gold)',fontSize:'18px'}},fmtMoney(m.valorRealNF||totalNF()));
+  var impostosRowEl   = el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderTop:'1px dashed var(--border)'}},[
+    el('span',{style:{fontSize:'12px',color:'var(--gold)'}},'📋 Impostos / Frete (diferença):'),
+    impostosEl,
+  ]);
+
+  var valorRealInp = el('input',{
+    type:'number',class:'form-input',min:'0',step:'0.01',
+    value:m.valorRealNF||'',
+    placeholder:'Ex: 965,71',
+    style:{width:'150px',textAlign:'right',fontWeight:'700'},
+    oninput:function(){
+      m.valorRealNF = parseFloat(this.value)||0;
+      var imp = m.valorRealNF - totalNF();
+      impostosEl.textContent = (imp>=0?'+ ':'-')+fmtMoney(Math.abs(imp));
+      impostosEl.style.color = imp>0.01?'var(--gold)':imp<-0.01?'var(--danger)':'var(--text3)';
+      impostosRowEl.style.display = Math.abs(imp)>0.005 ? 'flex' : 'none';
+      totalRealEl.textContent = fmtMoney(m.valorRealNF||totalNF());
+    },
+  });
+  // init impostos row visibility
+  var _impInit = (m.valorRealNF||0) - totalNF();
+  impostosRowEl.style.display = Math.abs(_impInit)>0.005 ? 'flex' : 'none';
+  if (m.valorRealNF) {
+    impostosEl.textContent = (_impInit>=0?'+ ':'-')+fmtMoney(Math.abs(_impInit));
+    impostosEl.style.color = _impInit>0.01?'var(--gold)':_impInit<-0.01?'var(--danger)':'var(--text3)';
+  }
 
   // Conta a pagar section
   var despVencInp = el('input',{type:'date',class:'form-input',value:m.despVenc||today(),oninput:function(){m.despVenc=this.value;}});
@@ -1618,10 +1650,11 @@ function renderNFModal() {
       });
     });
 
-    if (m.gerarDespesa && nfTotal>0) {
+    var vlConta = (m.valorRealNF && m.valorRealNF>0) ? m.valorRealNF : nfTotal;
+    if (m.gerarDespesa && vlConta>0) {
       var fpg   = m.despFormPgto||'Boleto';
       var nParc = fpg==='Parcelado' ? (parseInt(m.despParcelas)||2) : 1;
-      var vlParc = nfTotal/nParc;
+      var vlParc = vlConta/nParc;
       for (var pi=0;pi<nParc;pi++) {
         var vd = new Date((m.despVenc||today())+'T12:00:00');
         vd.setMonth(vd.getMonth()+pi);
@@ -1732,12 +1765,28 @@ function renderNFModal() {
 
       // Total da NF
       el('div',{style:{
-        display:'flex',justifyContent:'flex-end',alignItems:'center',gap:'12px',
         margin:'16px 0',padding:'14px 16px',
         background:'var(--bg3)',borderRadius:'8px',border:'1px solid var(--border)',
       }},[
-        el('span',{style:{fontSize:'14px',color:'var(--text3)'}},'Total da NF:'),
-        grandTotalEl,
+        el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}},[
+          el('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Σ Produtos / insumos:'),
+          grandTotalEl,
+        ]),
+        impostosRowEl,
+        el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',borderTop:'2px solid var(--border)',paddingTop:'10px',marginTop:'6px'}},[
+          el('div',{},[
+            el('div',{style:{fontSize:'13px',fontWeight:'700',color:'var(--text)',marginBottom:'4px'}},'Valor total da NF (real)'),
+            el('div',{style:{fontSize:'11px',color:'var(--text3)'}},'Informe o valor exato da nota para calcular impostos/frete'),
+          ]),
+          el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},[
+            el('span',{style:{fontSize:'13px',color:'var(--text3)'}},'R$'),
+            valorRealInp,
+          ]),
+        ]),
+        el('div',{style:{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:'8px',marginTop:'10px',paddingTop:'8px',borderTop:'1px solid var(--border)'}},[
+          el('span',{style:{fontSize:'14px',color:'var(--text3)'}},'Total a pagar:'),
+          totalRealEl,
+        ]),
       ]),
 
       // Gerar conta a pagar
@@ -1801,6 +1850,7 @@ function renderEstoque() {
       numero:'', fornecedor:'', cnpj:'', chaveAcesso:'',
       dataEmissao:today(), dataEntrada:today(),
       itens:[{_id:uid(), produto_id:'', quantidade:'', qtdEmb:'', unidPorEmb:'', custoUnit:''}],
+      valorRealNF:0,
       gerarDespesa:false, despVenc:today(), despFormPgto:'Boleto', despParcelas:2, despBanco:'',
     }});
   }
