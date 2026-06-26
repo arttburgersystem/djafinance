@@ -717,19 +717,30 @@ function renderMovModal() {
 
   var prodAtual = prods.find(function(p){return p.id===m.produto_id;});
 
-  var prodSel = el('select',{class:'form-input',onchange:function(){
-    var prd = prods.find(function(p){return p.id===this.value;},this);
+  var prodSel = document.createElement('select');
+  prodSel.className = 'form-input';
+  prodSel.onchange = function(){
+    var selVal = this.value;
+    var prd = prods.find(function(p){return p.id===selVal;});
     var novoCusto = (prd && tipo!=='saida') ? (prd.custoMedio||0) : m.custoUnitario;
-    setState({movModal:Object.assign({},m,{produto_id:this.value,custoUnitario:novoCusto})});
-  }},
-    [el('option',{value:''},'— Selecione o produto —')].concat(
-      prods.map(function(p){
-        return el('option',{value:p.id,selected:m.produto_id===p.id},
-          p.nome+' ('+formatQtd(p.estoqueAtual,p.unidade)+')');
-      })));
+    setState({movModal:Object.assign({},m,{produto_id:selVal,custoUnitario:novoCusto,qtdEmb:'',unidPorEmb:''})});
+  };
+  (function(){
+    var defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='— Selecione o produto / insumo —';prodSel.appendChild(defOpt);
+    var ins=prods.filter(function(p){return p.tipo==='insumo';});
+    var prs=prods.filter(function(p){return p.tipo!=='insumo';});
+    if(ins.length){var gi=document.createElement('optgroup');gi.label='⚙️ Insumos (matéria-prima)';ins.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.nome+' ('+formatQtd(p.estoqueAtual,p.unidade)+')';if(m.produto_id===p.id)o.selected=true;gi.appendChild(o);});prodSel.appendChild(gi);}
+    if(prs.length){var gp=document.createElement('optgroup');gp.label='🍔 Produtos';prs.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.nome+' ('+formatQtd(p.estoqueAtual,p.unidade)+')';if(m.produto_id===p.id)o.selected=true;gp.appendChild(o);});prodSel.appendChild(gp);}
+  })();
 
-  var qtdInp    = el('input',{class:'form-input',type:'number',min:'0',step:'0.001',value:m.quantidade||'',
+  var qtdInp = el('input',{class:'form-input',type:'number',min:'0',step:'0.001',value:m.quantidade||'',
     placeholder:tipo==='ajuste'?'Novo estoque total':'Quantidade',oninput:function(){m.quantidade=parseFloat(this.value)||0;}});
+  var qtdEmbInp = tipo==='entrada' ? el('input',{class:'form-input',type:'number',min:'1',step:'1',
+    value:m.qtdEmb||'',placeholder:'Ex: 3 (caixas, fardos...)',
+    oninput:function(){m.qtdEmb=parseInt(this.value)||0;if(m.qtdEmb>0&&m.unidPorEmb>0){m.quantidade=m.qtdEmb*m.unidPorEmb;qtdInp.value=String(m.quantidade);}}}) : null;
+  var unidPorEmbInp = tipo==='entrada' ? el('input',{class:'form-input',type:'number',min:'0.001',step:'0.001',
+    value:m.unidPorEmb||'',placeholder:'Ex: 12 (unid/cx)',
+    oninput:function(){m.unidPorEmb=parseFloat(this.value)||0;if(m.qtdEmb>0&&m.unidPorEmb>0){m.quantidade=m.qtdEmb*m.unidPorEmb;qtdInp.value=String(m.quantidade);}}}) : null;
   var custoInp  = el('input',{class:'form-input',type:'number',min:'0',step:'0.01',value:m.custoUnitario||'',
     placeholder:'0,00',oninput:function(){m.custoUnitario=parseFloat(this.value)||0;}});
   var dataInp   = el('input',{class:'form-input',type:'date',value:m.data||today(),oninput:function(){m.data=this.value;}});
@@ -746,12 +757,38 @@ function renderMovModal() {
     prodAtual.estoqueMaximo>0 ? el('span',{style:{color:prodAtual.estoqueAtual>=prodAtual.estoqueMaximo?'var(--danger)':'var(--text3)'}},'⬆️ Máx: '+formatQtd(prodAtual.estoqueMaximo,prodAtual.unidade)) : null,
   ].filter(Boolean)) : null;
 
-  var cbGerarDesp = el('input',{type:'checkbox',id:'_gerardesp',onchange:function(){m.gerarDespesa=this.checked;}});
-  if (m.gerarDespesa) cbGerarDesp.checked = true;
-  var gerarDespEl = tipo==='entrada' ? el('div',{style:{display:'flex',gap:'8px',alignItems:'center',padding:'8px 0',borderTop:'1px solid var(--border)',marginTop:'8px'}},[
-    cbGerarDesp,
-    el('label',{for:'_gerardesp',style:{fontSize:'12px',color:'var(--text2)',cursor:'pointer'}},'💸 Gerar conta a pagar vinculada a esta compra'),
-  ]) : null;
+  var cbGerarDesp = el('input',{type:'checkbox',id:'_gerardesp'});
+  if(m.gerarDespesa) cbGerarDesp.checked=true;
+  cbGerarDesp.onchange=function(){setState({movModal:Object.assign({},m,{gerarDespesa:this.checked})});};
+  var bancos=(state.bancos||[]).filter(function(b){return b.profile===state.profile;});
+  var despValorAutoCalc=(m.custoUnitario||0)*(m.quantidade||0);
+  var despValorInp=el('input',{class:'form-input',type:'number',min:'0',step:'0.01',
+    value:m.despValor!==undefined?String(m.despValor):(despValorAutoCalc?String(despValorAutoCalc):''),placeholder:'0,00',
+    oninput:function(){m.despValor=parseFloat(this.value)||0;}});
+  var despVencInp=el('input',{class:'form-input',type:'date',value:m.despVenc||m.data||today(),oninput:function(){m.despVenc=this.value;}});
+  var despFormSel=el('select',{class:'form-input',onchange:function(){setState({movModal:Object.assign({},m,{despFormPgto:this.value})});}},
+    ['Boleto','PIX','Dinheiro','Cartão Débito','Cartão Crédito','Parcelado'].map(function(f){return el('option',{value:f,selected:(m.despFormPgto||'Boleto')===f},f);}));
+  var despParcelasInp=el('input',{class:'form-input',type:'number',min:'2',step:'1',
+    value:m.despParcelas||'',placeholder:'Nº de parcelas',oninput:function(){m.despParcelas=parseInt(this.value)||2;}});
+  var despBancoSel=el('select',{class:'form-input',onchange:function(){m.despBanco=this.value;}},
+    [el('option',{value:''},'— Banco / Conta —')].concat(bancos.map(function(b){return el('option',{value:b.id,selected:m.despBanco===b.id},b.nome);})));
+  var despDescInp=el('input',{class:'form-input',value:m.despDesc||'',placeholder:'Descrição da conta (opcional)',oninput:function(){m.despDesc=this.value;}});
+  var despCampos=m.gerarDespesa?el('div',{style:{background:'var(--bg3)',border:'1px solid var(--gold)',borderRadius:'8px',padding:'12px',marginTop:'10px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}},[
+    el('div',{style:{gridColumn:'1/-1',fontSize:'11px',fontWeight:'700',color:'var(--gold)',marginBottom:'2px'}},'💳 Detalhes da conta a pagar'),
+    el('div',{class:'form-group',style:{margin:'0'}},[el('label',{class:'form-label'},'Valor total (R$)'),despValorInp]),
+    el('div',{class:'form-group',style:{margin:'0'}},[el('label',{class:'form-label'},'Vencimento do pagamento'),despVencInp]),
+    el('div',{class:'form-group',style:{margin:'0'}},[el('label',{class:'form-label'},'Forma de pagamento'),despFormSel]),
+    (m.despFormPgto==='Parcelado')?el('div',{class:'form-group',style:{margin:'0'}},[el('label',{class:'form-label'},'Nº de parcelas'),despParcelasInp]):null,
+    bancos.length>0?el('div',{class:'form-group',style:{margin:'0',gridColumn:m.despFormPgto==='Parcelado'?'auto':'1/-1'}},[el('label',{class:'form-label'},'Banco / Conta'),despBancoSel]):null,
+    el('div',{class:'form-group',style:{margin:'0',gridColumn:'1/-1'}},[el('label',{class:'form-label'},'Descrição (opcional)'),despDescInp]),
+  ].filter(Boolean)):null;
+  var gerarDespEl=tipo==='entrada'?el('div',{style:{borderTop:'1px solid var(--border)',marginTop:'8px',paddingTop:'8px'}},[
+    el('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},[
+      cbGerarDesp,
+      el('label',{for:'_gerardesp',style:{fontSize:'12px',color:'var(--text2)',cursor:'pointer'}},'💸 Gerar conta a pagar vinculada a esta compra'),
+    ]),
+    despCampos,
+  ].filter(Boolean)):null;
 
   function salvar() {
     if (!m.produto_id)              { errEl.textContent='Selecione o produto.'; return; }
@@ -788,18 +825,31 @@ function renderMovModal() {
     var novosMovs = (state.movEstoque||[]).concat([mov]);
     var novasContas = state.contas;
 
-    if (tipo==='entrada' && m.gerarDespesa && custo>0) {
-      var fornObj = (state.fornecedores||[]).find(function(f){return f.id===prod.fornecedor_id;});
-      var desp = {
-        id:uid(), profile:state.profile,
-        descricao:'Compra: '+prod.nome+' ('+formatQtd(qtd,prod.unidade)+')',
-        valor:custo*qtd, vencimento:m.data||today(),
-        tipo:'pagar', status:'pendente', categoria:'Estoque/Insumos',
-        prioridade:'normal', fornecedor:fornObj?fornObj.nome:'',
-        mov_estoque_id:mov.id, criadoEm:today(),
-      };
-      novasContas = state.contas.concat([desp]);
-      logAudit('gerou despesa por compra de estoque', prod.nome+' — '+fmtMoney(desp.valor));
+    if (tipo==='entrada' && m.gerarDespesa) {
+      var fornObj=(state.fornecedores||[]).find(function(f){return f.id===prod.fornecedor_id;});
+      var despValorFinal=m.despValor!==undefined?m.despValor:custo*qtd;
+      var despFormPgto=m.despFormPgto||'Boleto';
+      var despParcelas=(despFormPgto==='Parcelado')?(parseInt(m.despParcelas)||2):1;
+      var despBancoObj=m.despBanco?(state.bancos||[]).find(function(b){return b.id===m.despBanco;}):null;
+      var despDescBase=m.despDesc||('Compra: '+prod.nome+' ('+formatQtd(qtd,prod.unidade)+')');
+      var despVencBase=m.despVenc||m.data||today();
+      var novasDesps=[];
+      for(var parc=0;parc<despParcelas;parc++){
+        var dtPts=despVencBase.split('-');
+        var dtV=new Date(parseInt(dtPts[0]),parseInt(dtPts[1])-1+parc,parseInt(dtPts[2]));
+        var dtStr=dtV.getFullYear()+'-'+String(dtV.getMonth()+1).padStart(2,'0')+'-'+String(dtV.getDate()).padStart(2,'0');
+        novasDesps.push({
+          id:uid(),profile:state.profile,
+          descricao:despParcelas>1?despDescBase+' ('+(parc+1)+'/'+despParcelas+')':despDescBase,
+          valor:Math.round((despValorFinal/despParcelas)*100)/100,
+          vencimento:dtStr,tipo:'pagar',status:'pendente',categoria:'Estoque/Insumos',
+          prioridade:'normal',fornecedor:fornObj?fornObj.nome:'',
+          formaPgto:despFormPgto,banco:despBancoObj?despBancoObj.nome:'',
+          mov_estoque_id:mov.id,criadoEm:today(),
+        });
+      }
+      novasContas=state.contas.concat(novasDesps);
+      logAudit('gerou conta'+(despParcelas>1?' em '+despParcelas+'x':'')+' por compra de estoque',prod.nome+' — '+fmtMoney(despValorFinal));
     }
 
     var tipoLabel = tipo==='entrada'?'entrada':tipo==='saida'?'saída':'ajuste';
@@ -829,6 +879,14 @@ function renderMovModal() {
             el('div',{class:'form-group'},[el('label',{class:'form-label'},'Produto / Insumo'),prodSel])),
           prodInfoEl ? el('div',{style:{gridColumn:'1/-1'}},prodInfoEl) : null,
           el('div',{class:'form-group'},[el('label',{class:'form-label'},tipo==='ajuste'?'Novo estoque total':'Quantidade'),qtdInp]),
+          (tipo==='entrada'&&qtdEmbInp)?el('div',{style:{gridColumn:'1/-1',background:'var(--bg3)',borderRadius:'8px',padding:'10px 12px',marginTop:'-4px'}},[
+            el('div',{style:{fontSize:'11px',color:'var(--text3)',fontWeight:'600',marginBottom:'8px'}},'📦 Ou calcule pela embalagem (opcional):'),
+            el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}},[
+              el('div',{},[el('label',{class:'form-label',style:{fontSize:'11px'}},'Nº de embalagens'),qtdEmbInp]),
+              el('div',{},[el('label',{class:'form-label',style:{fontSize:'11px'}},'Unid. por embalagem'),unidPorEmbInp]),
+            ]),
+            (m.qtdEmb>0&&m.unidPorEmb>0)?el('div',{style:{fontSize:'12px',color:'var(--green)',fontWeight:'700',marginTop:'6px'}},'→ Total: '+m.quantidade+' '+((prodAtual&&prodAtual.unidade)||'un')):null,
+          ].filter(Boolean)):null,
           tipo!=='saida' ? el('div',{class:'form-group'},[el('label',{class:'form-label'},'Custo unitário (R$)'),custoInp]) : null,
           el('div',{class:'form-group'},[el('label',{class:'form-label'},'Data'),dataInp]),
           el('div',{class:'form-group'},[el('label',{class:'form-label'},'Motivo'),motivoSel]),
