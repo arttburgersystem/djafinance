@@ -15,6 +15,9 @@ function renderModal(){
     banco:edit.banco||'',
     fornecedor:edit.fornecedor||'',
     fornecedorId:edit.fornecedorId||'',
+    cardId:edit.cardId||'',
+    numParcelas:edit.numParcelas||1,
+    faturaInicio:edit.faturaInicio||today().slice(0,7),
   };
 
   function g(id){return document.getElementById('mf-'+id)?document.getElementById('mf-'+id).value:vals[id];}
@@ -44,12 +47,63 @@ function renderModal(){
     d.fornecedorId=fornecedorIdInp?fornecedorIdInp.value:'';
     if(!d.descricao||!d.valor){showToast('Preencha descrição e valor','error');return;}
 
+    // ── Lançamento em cartão de crédito com parcelamento ─────────────────────
+    var _fAtual   = document.getElementById('mf-formaPgto') ? document.getElementById('mf-formaPgto').value : d.formaPgto;
+    var _cardIdSel= document.getElementById('mf-cardId')    ? document.getElementById('mf-cardId').value    : '';
+    if(_fAtual==='credito' && _cardIdSel && tipo==='pagar') {
+      var _numParc  = Math.max(1, parseInt(document.getElementById('mf-numParcelas') ? document.getElementById('mf-numParcelas').value : '1')||1);
+      var _fatInicio= document.getElementById('mf-faturaInicio') ? document.getElementById('mf-faturaInicio').value : today().slice(0,7);
+      var _cardSel  = (state.cartoes||[]).find(function(c){return c.id===_cardIdSel;});
+      var _diaVenc  = _cardSel ? (parseInt(_cardSel.diaVencimento)||10) : 10;
+      var _grupoId  = uid();
+      var _valParcela = Math.round((d.valor / _numParc)*100)/100;
+
+      function _addMes(yyyymm, n){
+        var p=yyyymm.split('-'); var y=parseInt(p[0]); var mo=parseInt(p[1])-1+n;
+        y+=Math.floor(mo/12); mo=mo%12;
+        return y+'-'+String(mo+1).padStart(2,'0');
+      }
+
+      var _novasCP=[], _novasTR=[];
+      for(var _pi=0;_pi<_numParc;_pi++){
+        var _mf=_addMes(_fatInicio,_pi);
+        var _dv=_mf+'-'+String(_diaVenc).padStart(2,'0');
+        var _sfx=_numParc>1?' ('+(_pi+1)+'/'+_numParc+')':'';
+        _novasCP.push({
+          id:'conta_'+Date.now()+'_p'+_pi,
+          tipo:'pagar', descricao:d.descricao+_sfx,
+          valor:_valParcela, categoria:d.categoria,
+          vencimento:_dv, status:'pendente', pago:false,
+          recorrente:false, notas:d.notas, profile:state.profile,
+          formaPgto:'credito', cardId:_cardIdSel,
+          parcela:(_pi+1)+'/'+_numParc, numParcelas:_numParc,
+          grupoParcelamento:_grupoId,
+        });
+        _novasTR.push({
+          id:'ctrans_'+Date.now()+'_p'+_pi,
+          cardId:_cardIdSel, data:d.vencimento,
+          descricao:d.descricao+_sfx,
+          valor:_valParcela, categoria:d.categoria,
+          parcela:(_pi+1)+'/'+_numParc, fatura:_mf,
+          grupoParcelamento:_grupoId, profile:state.profile,
+          importado:false,
+        });
+      }
+
+      var _nc=(state.contas||[]).concat(_novasCP);
+      var _ntc=(state.transacoesCartao||[]).concat(_novasTR);
+      lsSet('contas',_nc); lsSet('transacoesCartao',_ntc);
+      setState({contas:_nc, transacoesCartao:_ntc, modal:null});
+      scheduleSave();
+      showToast(_numParc>1 ? _numParc+'x de '+fmtMoney(_valParcela)+' em '+(_cardSel?_cardSel.nome:'cartão') : fmtMoney(d.valor)+' à vista em '+(_cardSel?_cardSel.nome:'cartão'));
+      return;
+    }
+
     var novasContas;
     var novosBancos=state.bancos;
     var statusPago=d.status==='pago'||d.status==='recebido';
 
     if(edit.id){
-      // Se estava pago+banco antes, reverte o saldo antigo
       var old=state.contas.find(function(x){return x.id===edit.id;});
       if(old&&(old.status==='pago'||old.status==='recebido')&&old.banco){
         novosBancos=novosBancos.map(function(b){
@@ -63,7 +117,6 @@ function renderModal(){
       novasContas=(state.contas||[]).concat([d]);
     }
 
-    // Aplica débito/crédito no banco se status pago/recebido e banco informado
     if(statusPago&&d.banco){
       novosBancos=novosBancos.map(function(b){
         if(b.id!==d.banco)return b;
@@ -91,7 +144,6 @@ function renderModal(){
     if(lbl)lbl.style.color=this.checked?'var(--gold)':'var(--text2)';
   };
 
-  // Campos só aparecem se recorrência estiver ativada
   var recFields=el('div',{id:'mf-rec-fields',style:{display:vals.recorrente?'block':'none',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'14px',marginBottom:'14px'}},[
     div('form-row',[
       div('form-group',[el('label',{class:'form-label'},'Repetição'),sel('rec-tipo',[{v:'diario',l:'Diário'},{v:'semanal',l:'Semanal'},{v:'mensal',l:'Mensal'},{v:'anual',l:'Anual'},{v:'personalizado',l:'Personalizado...'}],vals.recorrencia_tipo)]),
@@ -141,7 +193,14 @@ function renderModal(){
     })
   );
 
-  // Preview de saldo após débito
+  // ── Cartões disponíveis ──────────────────────────────────────────────────
+  var cartoesList=(state.cartoes||[]).filter(function(c){return !c.profile||c.profile===state.profile;});
+  var cartaoOpts=[{v:'',l:'— Selecione o cartão —'}].concat(
+    cartoesList.map(function(c){return{v:c.id,l:c.nome+(c.final?' ••••'+c.final:'')};})
+  );
+  var parcelasOpts=[];
+  for(var _ni=1;_ni<=24;_ni++){parcelasOpts.push({v:String(_ni),l:_ni===1?'À vista (1x)':_ni+'x'});}
+
   var saldoPreview=el('div',{id:'mf-saldo-preview',style:{fontSize:'11px',marginTop:'5px',display:'none'}});
 
   function atualizarSaldoPreview(){
@@ -167,6 +226,20 @@ function renderModal(){
     }
   }
 
+  function toggleCreditoSection(forma){
+    var creditoDiv=document.getElementById('mf-credito-section');
+    var bancoDiv  =document.getElementById('mf-banco-group');
+    var isCredito = forma==='credito';
+    if(creditoDiv) creditoDiv.style.display=isCredito&&tipo==='pagar'?'block':'none';
+    if(bancoDiv)   bancoDiv.style.display=isCredito?'none':'block';
+  }
+
+  var formaPgtoSel=sel('formaPgto',FORMAS_PGTO,vals.formaPgto);
+  formaPgtoSel.onchange=function(){
+    atualizarSaldoPreview();
+    toggleCreditoSection(this.value);
+  };
+
   var bancoSel=el('select',{class:'form-input',id:'mf-banco',onchange:atualizarSaldoPreview});
   bancoOpts.forEach(function(o){
     var op=el('option',{value:o.v},o.l);
@@ -179,6 +252,38 @@ function renderModal(){
 
   var valorInp=inp('valor','number','0,00',vals.valor);
   valorInp.addEventListener('input',atualizarSaldoPreview);
+
+  // Seção de detalhes do cartão (só aparece quando forma = crédito + tipo = pagar)
+  var isCreditoInicial = vals.formaPgto==='credito' && tipo==='pagar';
+  var creditoSection=el('div',{id:'mf-credito-section',style:{
+    display:isCreditoInicial?'block':'none',
+    background:'rgba(201,168,76,.07)',border:'1px solid rgba(201,168,76,.35)',
+    borderRadius:'var(--radius-sm)',padding:'14px',marginBottom:'14px',
+  }},[
+    el('div',{style:{fontSize:'11px',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.8px',color:'var(--gold)',marginBottom:'12px'}},'💳 Dados do cartão'),
+    div('form-row',[
+      div('form-group',[
+        el('label',{class:'form-label'},'Cartão de crédito'),
+        sel('cardId',cartaoOpts,vals.cardId),
+      ]),
+      div('form-group',[
+        el('label',{class:'form-label'},'Parcelamento'),
+        sel('numParcelas',parcelasOpts,String(vals.numParcelas||1)),
+      ]),
+    ]),
+    div('form-group',[
+      el('label',{class:'form-label'},'Mês da 1ª cobrança (fatura)'),
+      el('input',{class:'form-input',type:'month',id:'mf-faturaInicio',value:vals.faturaInicio}),
+    ]),
+    el('p',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'6px',lineHeight:'1.5'}},
+      'As parcelas serão lançadas automaticamente no financeiro e nas faturas do cartão correspondente.'),
+  ]);
+
+  var bancoGroup=el('div',{id:'mf-banco-group',style:{display:isCreditoInicial?'none':'block'}},[
+    el('label',{class:'form-label'},tipo==='pagar'?'Conta de origem (banco)':'Conta de destino (banco)'),
+    bancoSel,
+    saldoPreview,
+  ]);
 
   var modal=div('modal',[
     div('modal-title',[
@@ -193,7 +298,7 @@ function renderModal(){
     ]),
     div('form-row',[
       div('form-group',[el('label',{class:'form-label',for:'mf-valor'},'Valor (R$)'),valorInp]),
-      div('form-group',[el('label',{class:'form-label',for:'mf-vencimento'},tipo==='pagar'?'Vencimento':'Previsão'),inp('vencimento','date','',vals.vencimento)]),
+      div('form-group',[el('label',{class:'form-label',for:'mf-vencimento'},tipo==='pagar'?'Data da compra':'Previsão'),inp('vencimento','date','',vals.vencimento)]),
     ]),
     div('form-row',[
       div('form-group',[
@@ -206,21 +311,20 @@ function renderModal(){
       div('form-group',[el('label',{class:'form-label',for:'mf-status'},'Status'),statusSel]),
     ]),
 
-    // ── Forma de pagamento + Banco ────────────────────────────────────────
+    // ── Forma de pagamento + Banco / Cartão ──────────────────────────────
     el('div',{style:{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'12px 14px',marginBottom:'14px'}},[
       el('div',{style:{fontSize:'11px',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.8px',color:'var(--text3)',marginBottom:'10px'}},tipo==='pagar'?'💳 Pagamento':'🏦 Recebimento'),
       div('form-row',[
         div('form-group',[
           el('label',{class:'form-label'},tipo==='pagar'?'Forma de pagamento':'Forma de recebimento'),
-          sel('formaPgto',FORMAS_PGTO,vals.formaPgto),
+          formaPgtoSel,
         ]),
-        div('form-group',[
-          el('label',{class:'form-label'},tipo==='pagar'?'Conta de origem (banco)':'Conta de destino (banco)'),
-          bancoSel,
-          saldoPreview,
-        ]),
+        bancoGroup,
       ]),
     ]),
+
+    // Seção de cartão de crédito (visível quando forma=crédito)
+    creditoSection,
 
     div('form-group',[
       el('label',{class:'form-label'},'🎯 Prioridade'),
