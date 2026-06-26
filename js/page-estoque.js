@@ -16,7 +16,7 @@ function estUnids() {
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
 function estProdutos() {
-  return (state.produtos || []).filter(function(p){ return p.profile === state.profile && p.ativo !== false; });
+  return (state.produtos || []).filter(function(p){ return p.profile === state.profile && p.ativo !== false && p.tipo === 'insumo'; });
 }
 function estMovs() {
   return (state.movEstoque || []).filter(function(m){ return m.profile === state.profile; });
@@ -988,9 +988,9 @@ function renderEstProdutos() {
 
   var content = prods.length===0
     ? el('div',{class:'card'},[el('div',{class:'empty'},[
-        el('div',{class:'empty-icon'},'📦'),
-        el('div',{class:'empty-title'},'Nenhum produto cadastrado'),
-        el('p',{style:{fontSize:'12px',color:'var(--text3)'}},'Cadastre produtos e insumos para controlar o estoque e calcular o CMV'),
+        el('div',{class:'empty-icon'},'⚙️'),
+        el('div',{class:'empty-title'},'Nenhum insumo cadastrado'),
+        el('p',{style:{fontSize:'12px',color:'var(--text3)'}},'Cadastre insumos (matérias-primas) para controlar o estoque e calcular o CMV'),
       ])])
     : el('div',{},Object.keys(grouped).map(function(cat){
         return el('div',{style:{marginBottom:'20px'}},[
@@ -1342,7 +1342,7 @@ function renderEstoque() {
   var badge    = criticos+zerados;
 
   var TABS = [
-    {id:'produtos',label:'📦 Produtos',    badge:badge>0?String(badge):null},
+    {id:'produtos',label:'⚙️ Insumos',     badge:badge>0?String(badge):null},
     {id:'movs',    label:'↕️ Movimentações'},
     {id:'cmv',     label:'📊 CMV'},
     {id:'abc',     label:'🔢 Curva ABC'},
@@ -1371,7 +1371,7 @@ function renderEstoque() {
   if (tab==='produtos') {
     acoes.push(btn('btn-ghost','🔧 Ajuste',function(){setState({movModal:{tipo:'ajuste',data:today()}});}));
     acoes.push(btn('btn-secondary','📥 Entrada',function(){setState({movModal:{tipo:'entrada',data:today()}});}));
-    acoes.push(btn('btn-primary','+ Produto',function(){setState({produtoModal:{}});}));
+    acoes.push(btn('btn-primary','+ Cadastrar Insumo',function(){setState({produtoModal:{tipo:'insumo'}});}));
   }
   if (tab==='movs') {
     acoes.push(btn('btn-secondary','📥 Entrada',function(){setState({movModal:{tipo:'entrada',data:today()}});}));
@@ -1405,8 +1405,8 @@ function renderEstoque() {
   return el('div',{class:'page-content'},[
     el('div',{class:'page-header'},[
       el('div',{},[
-        el('h2',{class:'page-title'},'📦 Estoque & CMV'),
-        el('p',{class:'page-sub'},prods.length+' produtos ativos · Valor: '+fmtMoney(calcValorEstoque())),
+        el('h2',{class:'page-title'},'⚙️ Estoque & CMV'),
+        el('p',{class:'page-sub'},prods.length+' insumos ativos · Valor: '+fmtMoney(calcValorEstoque())),
       ]),
       acoes.length ? el('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},acoes) : null,
     ].filter(Boolean)),
