@@ -1557,9 +1557,16 @@ function renderNFModal() {
     value:m.despParcelas||2,oninput:function(){m.despParcelas=parseInt(this.value)||2;}});
 
   var fornecedores = (state.fornecedores||[]).filter(function(f){return f.profile===state.profile;});
+  var bancos = (state.bancos||[]).filter(function(b){return b.profile===state.profile;});
 
   var cnpjInp = el('input',{type:'text',class:'form-input',value:m.cnpj||'',placeholder:'Preenchido automaticamente',
     oninput:function(){m.cnpj=this.value;}});
+
+  var despBancoSel = el('select',{class:'form-input',onchange:function(){m.despBanco=this.value;}},
+    [el('option',{value:''},'— Selecione o banco —')]
+    .concat(bancos.map(function(b){return el('option',{value:b.id},b.nome+(b.saldo!=null?' · '+fmtMoney(b.saldo):''));}))
+  );
+  despBancoSel.value = m.despBanco||'';
 
   var despCampos = m.gerarDespesa ? el('div',{style:{
     marginTop:'12px',padding:'14px',background:'var(--bg3)',
@@ -1569,10 +1576,11 @@ function renderNFModal() {
     el('div',{},[el('label',{class:'form-label'},'Vencimento'),despVencInp]),
     el('div',{},[el('label',{class:'form-label'},'Forma de pagamento'),despFormSel]),
     m.despFormPgto==='Parcelado' ? el('div',{},[el('label',{class:'form-label'},'Nº de parcelas'),despParcInp]) : null,
-    el('div',{style:{gridColumn:'1/-1'}},[
+    el('div',{style:{gridColumn:m.despFormPgto==='Parcelado'?'auto':'1/-1'}},[
       el('label',{class:'form-label'},'Banco / Conta'),
-      el('input',{type:'text',class:'form-input',value:m.despBanco||'',placeholder:'Ex: Bradesco conta PJ',
-        oninput:function(){m.despBanco=this.value;}}),
+      bancos.length>0 ? despBancoSel
+        : el('input',{type:'text',class:'form-input',value:m.despBanco||'',placeholder:'Nenhum banco cadastrado',
+            oninput:function(){m.despBanco=this.value;}}),
     ]),
   ].filter(Boolean)) : null;
 
@@ -1623,7 +1631,7 @@ function renderNFModal() {
           tipo:'despesa', categoria:'Estoque / Insumos',
           descricao:'NF '+(m.numero?m.numero+' — ':'')+m.fornecedor+(nParc>1?' ('+(pi+1)+'/'+nParc+')':''),
           valor:vlParc, vencimento:vdStr,
-          formaPgto:fpg, banco:m.despBanco||'',
+          formaPgto:fpg, banco:m.despBanco||'', bancoId:m.despBanco||'',
           status:'pendente', pago:false, data:today(),
         });
       }
