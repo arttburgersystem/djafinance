@@ -358,6 +358,12 @@ var FB_URL = 'https://djfinance-b3fd2-default-rtdb.firebaseio.com';
 // ── ESTADO ───────────────────────────────────────────────────────────────────
 var PROFILES_DEFAULT=[{id:'pessoal',label:'Pessoal',color:'#9b7fe8',icon:'👤'},{id:'artt',label:'Artt Burger',color:'#c9a84c',icon:'🍔'}];
 var PROFILES=lsGet('profiles',PROFILES_DEFAULT);
+// ── DETECÇÃO PERFIL A>E ──────────────────────────────────────────────────────
+function isAEProfile(){
+  var pf=PROFILES.find(function(p){return p.id===state.profile;});
+  return !!(pf&&pf.label==='A>E');
+}
+
 var CATS_DEFAULT = {
   artt_pagar:    ['Fornecedor','Aluguel','Funcionários','Energia','Internet','Marketing','Impostos','Manutenção','Outros'],
   artt_receber:  ['Vendas PDV','Delivery','iFood','Franchise Fee','Outros'],
@@ -365,10 +371,16 @@ var CATS_DEFAULT = {
   pes_pagar:     ['Moradia','Alimentação','Saúde','Educação','Transporte','Lazer','Cartão','Outros'],
   pes_receber:   ['Salário','Pró-labore','Investimento','Outros'],
   pes_receitas:  ['Salário','Pró-labore','Freelance','Investimento','Aluguel recebido','Comissão','Outros'],
+  ae_pagar:      ['Depósito em Banca','Taxa de Saque','Imposto','Assinatura','Ferramenta','Outros'],
+  ae_receber:    ['Saque de Banca','Bônus','Cashback','Reembolso','Outros'],
+  ae_receitas:   ['Saque Bet365','Saque Betano','Saque EstrelaBet','Saque Sportingbet','Saque KTO','Saque Outros'],
 };
-function getCats(key){ return lsGet('cats_'+key, CATS_DEFAULT[key]); }
+function getCats(key){ return lsGet('cats_'+key, CATS_DEFAULT[key]||['Outros']); }
 function saveCats(key, arr){ lsSet('cats_'+key, arr); }
 function getCatKey(profile, tipo){
+  if(isAEProfile()&&tipo==='pagar') return 'ae_pagar';
+  if(isAEProfile()&&tipo==='receber') return 'ae_receber';
+  if(isAEProfile()&&tipo==='receitas') return 'ae_receitas';
   if(profile==='artt'&&tipo==='pagar') return 'artt_pagar';
   if(profile==='artt'&&tipo==='receber') return 'artt_receber';
   if(profile==='artt'&&tipo==='receitas') return 'artt_receitas';
@@ -448,6 +460,10 @@ var state={
   sessionPickerOpen: false,
   auditLog: lsGet('auditLog',[]),
   auditBusca: '',
+  apostas: lsGet('apostas',[]),
+  apostaModal: null,
+  apostaFiltro: 'todas',
+  apostaBusca: '',
   recorrModal: null,
   fabOpen: false,
   orcamentos: lsGet('orcamentos',[]),
@@ -644,7 +660,7 @@ function fbPut(path,data){
 
 function loadFromFirebase(){
   setState({syncStatus:'syncing'});
-  return Promise.all([fbGet('/contas'),fbGet('/metas'),fbGet('/receitas'),fbGet('/bancos'),fbGet('/transferencias'),fbGet('/vendas'),fbGet('/emprestimos'),fbGet('/fornecedores'),fbGet('/funcionarios'),fbGet('/tarefas'),fbGet('/cartoes'),fbGet('/transacoesCartao'),fbGet('/usuarios'),fbGet('/auditLog'),fbGet('/produtos'),fbGet('/movEstoque'),fbGet('/empresaData'),fbGet('/setoresImpressao'),fbGet('/complementos'),fbGet('/kdsConfigs'),fbGet('/pedidos'),fbGet('/notas'),fbGet('/impressorasCadastradas'),fbGet('/configImpressao'),fbGet('/administradores'),fbGet('/estCategorias')])
+  return Promise.all([fbGet('/contas'),fbGet('/metas'),fbGet('/receitas'),fbGet('/bancos'),fbGet('/transferencias'),fbGet('/vendas'),fbGet('/emprestimos'),fbGet('/fornecedores'),fbGet('/funcionarios'),fbGet('/tarefas'),fbGet('/cartoes'),fbGet('/transacoesCartao'),fbGet('/usuarios'),fbGet('/auditLog'),fbGet('/produtos'),fbGet('/movEstoque'),fbGet('/empresaData'),fbGet('/setoresImpressao'),fbGet('/complementos'),fbGet('/kdsConfigs'),fbGet('/pedidos'),fbGet('/notas'),fbGet('/impressorasCadastradas'),fbGet('/configImpressao'),fbGet('/administradores'),fbGet('/estCategorias'),fbGet('/apostas')])
     .then(function(results){
       var contas=objToArr(results[0]);
       var metas=objToArr(results[1]);
@@ -673,8 +689,9 @@ function loadFromFirebase(){
       var configImpressao=(results[23]&&typeof results[23]==='object'&&!Array.isArray(results[23]))?results[23]:lsGet('configImpressao',{});
       var administradores=objToArr(results[24]||[]);
       var estCategorias=objToArr(results[25]||[]);
-      lsSet('contas',contas);lsSet('metas',metas);lsSet('receitas',receitas);lsSet('bancos',bancos);lsSet('transferencias',transferencias);lsSet('vendas',vendas);lsSet('emprestimos',emprestimos);lsSet('fornecedores',fornecedores);lsSet('funcionarios',funcionarios);lsSet('tarefas',tarefas);lsSet('cartoes',cartoes);lsSet('transacoesCartao',transacoesCartao);lsSet('usuarios',usuarios);lsSet('auditLog',auditLog);lsSet('produtos',produtos);lsSet('movEstoque',movEstoque);lsSet('empresaData',empresaData);lsSet('setoresImpressao',setoresImpressao);lsSet('complementos',complementos);lsSet('kdsConfigs',kdsConfigs);lsSet('pedidos',pedidos);lsSet('notas',notas);lsSet('impressorasCadastradas',impressorasCadastradas);lsSet('configImpressao',configImpressao);lsSet('administradores',administradores);lsSet('estCategorias',estCategorias);
-      setState({contas:contas,metas:metas,receitas:receitas,bancos:bancos,transferencias:transferencias,vendas:vendas,emprestimos:emprestimos,fornecedores:fornecedores,funcionarios:funcionarios,tarefas:tarefas,cartoes:cartoes,transacoesCartao:transacoesCartao,usuarios:usuarios,auditLog:auditLog,produtos:produtos,movEstoque:movEstoque,empresaData:empresaData,setoresImpressao:setoresImpressao,complementos:complementos,kdsConfigs:kdsConfigs,pedidos:pedidos,notas:notas,impressorasCadastradas:impressorasCadastradas,configImpressao:configImpressao,administradores:administradores,estCategorias:estCategorias,syncStatus:'ok'});
+      var apostas=objToArr(results[26]||[]);
+      lsSet('contas',contas);lsSet('metas',metas);lsSet('receitas',receitas);lsSet('bancos',bancos);lsSet('transferencias',transferencias);lsSet('vendas',vendas);lsSet('emprestimos',emprestimos);lsSet('fornecedores',fornecedores);lsSet('funcionarios',funcionarios);lsSet('tarefas',tarefas);lsSet('cartoes',cartoes);lsSet('transacoesCartao',transacoesCartao);lsSet('usuarios',usuarios);lsSet('auditLog',auditLog);lsSet('produtos',produtos);lsSet('movEstoque',movEstoque);lsSet('empresaData',empresaData);lsSet('setoresImpressao',setoresImpressao);lsSet('complementos',complementos);lsSet('kdsConfigs',kdsConfigs);lsSet('pedidos',pedidos);lsSet('notas',notas);lsSet('impressorasCadastradas',impressorasCadastradas);lsSet('configImpressao',configImpressao);lsSet('administradores',administradores);lsSet('estCategorias',estCategorias);lsSet('apostas',apostas);
+      setState({contas:contas,metas:metas,receitas:receitas,bancos:bancos,transferencias:transferencias,vendas:vendas,emprestimos:emprestimos,fornecedores:fornecedores,funcionarios:funcionarios,tarefas:tarefas,cartoes:cartoes,transacoesCartao:transacoesCartao,usuarios:usuarios,auditLog:auditLog,produtos:produtos,movEstoque:movEstoque,empresaData:empresaData,setoresImpressao:setoresImpressao,complementos:complementos,kdsConfigs:kdsConfigs,pedidos:pedidos,notas:notas,impressorasCadastradas:impressorasCadastradas,configImpressao:configImpressao,administradores:administradores,estCategorias:estCategorias,apostas:apostas,syncStatus:'ok'});
     })
     .catch(function(e){
       console.error(e);
@@ -716,6 +733,7 @@ function scheduleSave(){
       fbPut('/configImpressao',state.configImpressao||{}),
       fbPut('/auditLog',arrToObj(state.auditLog||[])),
       fbPut('/administradores',arrToObj(state.administradores||[])),
+      fbPut('/apostas',arrToObj(state.apostas||[])),
       fbPut('/estCategorias',arrToObj(state.estCategorias||[])),
       fbPut('/pdvPedidos',arrToObj(state.pdvPedidos||[])),
       fbPut('/pdvSessoes',arrToObj(state.pdvSessoes||[])),
@@ -1095,33 +1113,40 @@ function renderFAB(){
 // ── SIDEBAR ──────────────────────────────────────────────────────────────────
 function renderSidebar(){
   var pf=PROFILES.find(function(p){return p.id===state.profile;});
+  var _ae=isAEProfile();
   var nav=[
-    {id:'dashboard',label:'Visão geral',icon:'📊',section:'principal'},
-    {id:'bancos',label:'Bancos',icon:'🏦',section:'financeiro'},
-    {id:'dre',label:'DRE',icon:'📋',section:'financeiro'},
+    {id:'dashboard',label:_ae?'Painel de Apostas':'Visão geral',icon:_ae?'⚽':'📊',section:'principal'},
+    // ── apostas (só A>E) ──
+    {id:'apostas',label:'Minhas Apostas',icon:'🎯',section:'apostas',onlyAE:true},
+    {id:'bancos',label:_ae?'Bancas':'Bancos',icon:'🏦',section:_ae?'apostas':'financeiro'},
+    {id:'receber',label:_ae?'Saques Previstos':'Contas a receber',icon:_ae?'💸':'💰',section:_ae?'apostas':'financeiro'},
+    {id:'pagar',label:_ae?'Depósitos / Saídas':'Despesas',icon:'💸',section:_ae?'apostas':'financeiro'},
+    {id:'planejamento',label:_ae?'Metas de ROI':'Metas',icon:'🎯',section:_ae?'apostas':'planejamento'},
+    {id:'recorrencias',label:'Recorrências',icon:'🔄',section:_ae?'apostas':'planejamento'},
+    {id:'exportar',label:'Relatórios',icon:'📊',section:_ae?'apostas':'integração'},
+    {id:'notas',label:'Bloco de Notas',icon:'📝',section:_ae?'apostas':'planejamento'},
+    // ── financeiro genérico (oculto em A>E) ──
+    {id:'dre',label:'DRE',icon:'📋',section:'financeiro',hideAE:true},
     {id:'vendas',label:'Vendas do Dia',icon:'🛒',section:'financeiro',onlyProfile:'artt'},
-    {id:'receitas',label:'Receitas',icon:'💵',section:'financeiro'},
-    {id:'pagar',label:'Despesas',icon:'💸',section:'financeiro'},
-    {id:'receber',label:'Contas a receber',icon:'💰',section:'financeiro'},
-    {id:'emprestimos',label:'Empréstimos',icon:'🏧',section:'financeiro'},
-    {id:'cartoes',label:'Cartões de Crédito',icon:'💳',section:'financeiro'},
-    {id:'fornecedores',label:'Fornecedores',icon:'🏪',section:'financeiro'},
-    {id:'funcionarios',label:'Funcionários',icon:'👥',section:'financeiro'},
-    {id:'administrador',label:'Administrador',icon:'👤',section:'financeiro'},
-    {id:'fluxo',label:'Fluxo de caixa',icon:'📈',section:'financeiro'},
-    {id:'tarefas',label:'Tarefas & Agenda',icon:'✅',section:'planejamento'},
-    {id:'orcamento',label:'Orçamento',icon:'💰',section:'planejamento'},
-    {id:'planejamento',label:'Metas',icon:'🎯',section:'planejamento'},
+    {id:'receitas',label:'Receitas',icon:'💵',section:'financeiro',hideAE:true},
+    {id:'emprestimos',label:'Empréstimos',icon:'🏧',section:'financeiro',hideAE:true},
+    {id:'cartoes',label:'Cartões de Crédito',icon:'💳',section:'financeiro',hideAE:true},
+    {id:'fornecedores',label:'Fornecedores',icon:'🏪',section:'financeiro',hideAE:true},
+    {id:'funcionarios',label:'Funcionários',icon:'👥',section:'financeiro',hideAE:true},
+    {id:'administrador',label:'Administrador',icon:'👤',section:'financeiro',hideAE:true},
+    {id:'fluxo',label:'Fluxo de caixa',icon:'📈',section:'financeiro',hideAE:true},
+    // ── planejamento genérico (oculto em A>E) ──
+    {id:'tarefas',label:'Tarefas & Agenda',icon:'✅',section:'planejamento',hideAE:true},
+    {id:'orcamento',label:'Orçamento',icon:'💰',section:'planejamento',hideAE:true},
     {id:'alertas',label:'Alertas',icon:'🔔',section:'planejamento'},
-    {id:'recorrencias',label:'Recorrências',icon:'🔄',section:'planejamento'},
-    {id:'exportar',label:'Relatórios',icon:'📊',section:'integração'},
-    {id:'notas',label:'Bloco de Notas',icon:'📝',section:'planejamento'},
+    // ── ocultos globalmente ──
     {id:'estoque',label:'Estoque & CMV',icon:'📦',section:'sistema',hidden:true},
     {id:'cardapio',label:'Cardápio',icon:'🍽️',section:'sistema',hidden:true},
     {id:'impressoes',label:'Setores de Impressão',icon:'🖨️',section:'sistema',hidden:true},
     {id:'pdv',label:'PDV — Frente de Caixa',icon:'🏪',section:'sistema',hidden:true},
     {id:'kds',label:'KDS',icon:'📺',section:'sistema',hidden:true},
     {id:'mapa',label:'Mapa',icon:'🗺️',section:'sistema',hidden:true},
+    // ── sistema ──
     {id:'empresa',label:'Dados da Empresa',icon:'🏢',section:'sistema'},
     {id:'usuarios',label:'Usuários & Permissões',icon:'🔐',section:'sistema'},
     {id:'auditoria',label:'Histórico',icon:'🕐',section:'sistema'},
@@ -1168,12 +1193,21 @@ function renderSidebar(){
     dropdown=div('profile-dropdown',[...profileRows,addBtn]);
   }
 
-  var sections=['principal','financeiro','planejamento','integração','sistema'];
-  var secLabels={principal:'Principal',financeiro:'Financeiro',planejamento:'Planejamento','integração':'Integração',sistema:'Sistema'};
+  var sections=_ae
+    ?['principal','apostas','sistema']
+    :['principal','financeiro','planejamento','integração','sistema'];
+  var secLabels={principal:'Principal',financeiro:'Financeiro',planejamento:'Planejamento','integração':'Integração',sistema:'Sistema',apostas:'Apostas Esportivas'};
   var secCollapsed=state.navSectionsCollapsed||{};
 
   var navEl=div('nav',sections.map(function(sec){
-    var items=nav.filter(function(n){return n.section===sec&&!n.hidden&&(!n.onlyProfile||n.onlyProfile===state.profile);});
+    var items=nav.filter(function(n){
+      if(n.section!==sec)return false;
+      if(n.hidden)return false;
+      if(n.onlyAE&&!_ae)return false;
+      if(n.hideAE&&_ae)return false;
+      if(n.onlyProfile&&n.onlyProfile!==state.profile)return false;
+      return true;
+    });
     if(!items.length)return null;
     var isCollapsed=!!secCollapsed[sec];
 
@@ -2488,7 +2522,7 @@ function render(){
   var _hiddenPages=['estoque','cardapio','impressoes','pdv','kds','mapa'];
   if(_hiddenPages.indexOf(state.page)!==-1){setState({page:'dashboard'});return;}
 
-  var pages={dashboard:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,cartoes:renderCartoes,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,administrador:renderAdministrador,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas,usuarios:renderUsuarios,recorrencias:renderRecorrencias,auditoria:renderAuditoria,ajuda:renderAjuda,estoque:renderEstoque,empresa:renderEmpresa,cardapio:renderCardapio,impressoes:renderImpressoes,kds:renderKDS,notas:renderNotas,mapa:renderMapa,pdv:renderPDV};
+  var pages={dashboard:isAEProfile()&&typeof renderDashboardAE==='function'?renderDashboardAE:renderDashboard,apostas:typeof renderApostas==='function'?renderApostas:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,cartoes:renderCartoes,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,administrador:renderAdministrador,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas,usuarios:renderUsuarios,recorrencias:renderRecorrencias,auditoria:renderAuditoria,ajuda:renderAjuda,estoque:renderEstoque,empresa:renderEmpresa,cardapio:renderCardapio,impressoes:renderImpressoes,kds:renderKDS,notas:renderNotas,mapa:renderMapa,pdv:renderPDV};
   var pageContent=(pages[state.page]||renderDashboard)();
   var content=div('content',[pageContent]);
   var mainCls='main'+(state.sidebarCollapsed?' sb-collapsed':'');
@@ -2571,6 +2605,7 @@ function render(){
 <script src="js/page-usuarios.js"></script>
 <script src="js/page-recorrencias.js"></script>
 <script src="js/page-auditoria.js"></script>
+<script src="js/page-apostas.js"></script>
 <script src="js/page-ajuda.js"></script>
 <script src="js/page-notas.js"></script>
 <script src="js/page-mapa.js"></script>
