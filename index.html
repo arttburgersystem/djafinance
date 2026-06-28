@@ -427,6 +427,12 @@ var state={
   fornecedores: lsGet('fornecedores',[]),
   funcionarios: lsGet('funcionarios',[]),
   tarefas: lsGet('tarefas',[]),
+  dailyTaskDefs: lsGet('dailyTaskDefs',[]),
+  dailyOps: lsGet('dailyOps',[]),
+  dailyModal: null,
+  dailyAdiModal: null,
+  dailyTemplatesOpen: false,
+  _doTick: 0,
   usuarios: lsGet('usuarios',[]),
   produtos: lsGet('produtos',[]),
   movEstoque: lsGet('movEstoque',[]),
@@ -665,7 +671,7 @@ function fbPut(path,data){
 
 function loadFromFirebase(){
   setState({syncStatus:'syncing'});
-  return Promise.all([fbGet('/contas'),fbGet('/metas'),fbGet('/receitas'),fbGet('/bancos'),fbGet('/transferencias'),fbGet('/vendas'),fbGet('/emprestimos'),fbGet('/fornecedores'),fbGet('/funcionarios'),fbGet('/tarefas'),fbGet('/cartoes'),fbGet('/transacoesCartao'),fbGet('/usuarios'),fbGet('/auditLog'),fbGet('/produtos'),fbGet('/movEstoque'),fbGet('/empresaData'),fbGet('/setoresImpressao'),fbGet('/complementos'),fbGet('/kdsConfigs'),fbGet('/pedidos'),fbGet('/notas'),fbGet('/impressorasCadastradas'),fbGet('/configImpressao'),fbGet('/administradores'),fbGet('/estCategorias'),fbGet('/apostas'),fbGet('/orcamentos')])
+  return Promise.all([fbGet('/contas'),fbGet('/metas'),fbGet('/receitas'),fbGet('/bancos'),fbGet('/transferencias'),fbGet('/vendas'),fbGet('/emprestimos'),fbGet('/fornecedores'),fbGet('/funcionarios'),fbGet('/tarefas'),fbGet('/cartoes'),fbGet('/transacoesCartao'),fbGet('/usuarios'),fbGet('/auditLog'),fbGet('/produtos'),fbGet('/movEstoque'),fbGet('/empresaData'),fbGet('/setoresImpressao'),fbGet('/complementos'),fbGet('/kdsConfigs'),fbGet('/pedidos'),fbGet('/notas'),fbGet('/impressorasCadastradas'),fbGet('/configImpressao'),fbGet('/administradores'),fbGet('/estCategorias'),fbGet('/apostas'),fbGet('/orcamentos'),fbGet('/dailyTaskDefs'),fbGet('/dailyOps')])
     .then(function(results){
       var contas=objToArr(results[0]);
       var metas=objToArr(results[1]);
@@ -697,8 +703,10 @@ function loadFromFirebase(){
       var apostas=objToArr(results[26]||[]);
       var orcamentosFirebase=objToArr(results[27]||[]);
       var orcamentos=orcamentosFirebase.length>0?orcamentosFirebase:lsGet('orcamentos',[]);
-      lsSet('contas',contas);lsSet('metas',metas);lsSet('receitas',receitas);lsSet('bancos',bancos);lsSet('transferencias',transferencias);lsSet('vendas',vendas);lsSet('emprestimos',emprestimos);lsSet('fornecedores',fornecedores);lsSet('funcionarios',funcionarios);lsSet('tarefas',tarefas);lsSet('cartoes',cartoes);lsSet('transacoesCartao',transacoesCartao);lsSet('usuarios',usuarios);lsSet('auditLog',auditLog);lsSet('produtos',produtos);lsSet('movEstoque',movEstoque);lsSet('empresaData',empresaData);lsSet('setoresImpressao',setoresImpressao);lsSet('complementos',complementos);lsSet('kdsConfigs',kdsConfigs);lsSet('pedidos',pedidos);lsSet('notas',notas);lsSet('impressorasCadastradas',impressorasCadastradas);lsSet('configImpressao',configImpressao);lsSet('administradores',administradores);lsSet('estCategorias',estCategorias);lsSet('apostas',apostas);lsSet('orcamentos',orcamentos);
-      setState({contas:contas,metas:metas,receitas:receitas,bancos:bancos,transferencias:transferencias,vendas:vendas,emprestimos:emprestimos,fornecedores:fornecedores,funcionarios:funcionarios,tarefas:tarefas,cartoes:cartoes,transacoesCartao:transacoesCartao,usuarios:usuarios,auditLog:auditLog,produtos:produtos,movEstoque:movEstoque,empresaData:empresaData,setoresImpressao:setoresImpressao,complementos:complementos,kdsConfigs:kdsConfigs,pedidos:pedidos,notas:notas,impressorasCadastradas:impressorasCadastradas,configImpressao:configImpressao,administradores:administradores,estCategorias:estCategorias,apostas:apostas,orcamentos:orcamentos,syncStatus:'ok'});
+      var dailyTaskDefs=objToArr(results[28]||[]);
+      var dailyOps=objToArr(results[29]||[]);
+      lsSet('contas',contas);lsSet('metas',metas);lsSet('receitas',receitas);lsSet('bancos',bancos);lsSet('transferencias',transferencias);lsSet('vendas',vendas);lsSet('emprestimos',emprestimos);lsSet('fornecedores',fornecedores);lsSet('funcionarios',funcionarios);lsSet('tarefas',tarefas);lsSet('cartoes',cartoes);lsSet('transacoesCartao',transacoesCartao);lsSet('usuarios',usuarios);lsSet('auditLog',auditLog);lsSet('produtos',produtos);lsSet('movEstoque',movEstoque);lsSet('empresaData',empresaData);lsSet('setoresImpressao',setoresImpressao);lsSet('complementos',complementos);lsSet('kdsConfigs',kdsConfigs);lsSet('pedidos',pedidos);lsSet('notas',notas);lsSet('impressorasCadastradas',impressorasCadastradas);lsSet('configImpressao',configImpressao);lsSet('administradores',administradores);lsSet('estCategorias',estCategorias);lsSet('apostas',apostas);lsSet('orcamentos',orcamentos);lsSet('dailyTaskDefs',dailyTaskDefs);lsSet('dailyOps',dailyOps);
+      setState({contas:contas,metas:metas,receitas:receitas,bancos:bancos,transferencias:transferencias,vendas:vendas,emprestimos:emprestimos,fornecedores:fornecedores,funcionarios:funcionarios,tarefas:tarefas,cartoes:cartoes,transacoesCartao:transacoesCartao,usuarios:usuarios,auditLog:auditLog,produtos:produtos,movEstoque:movEstoque,empresaData:empresaData,setoresImpressao:setoresImpressao,complementos:complementos,kdsConfigs:kdsConfigs,pedidos:pedidos,notas:notas,impressorasCadastradas:impressorasCadastradas,configImpressao:configImpressao,administradores:administradores,estCategorias:estCategorias,apostas:apostas,orcamentos:orcamentos,dailyTaskDefs:dailyTaskDefs,dailyOps:dailyOps,syncStatus:'ok'});
     })
     .catch(function(e){
       console.error(e);
@@ -745,6 +753,8 @@ function scheduleSave(){
       fbPut('/orcamentos',arrToObj(state.orcamentos||[])),
       fbPut('/pdvPedidos',arrToObj(state.pdvPedidos||[])),
       fbPut('/pdvSessoes',arrToObj(state.pdvSessoes||[])),
+      fbPut('/dailyTaskDefs',arrToObj(state.dailyTaskDefs||[])),
+      fbPut('/dailyOps',arrToObj(state.dailyOps||[])),
     ]).then(function(){_updateSyncDOM('ok');})
       .catch(function(e){console.error(e);_updateSyncDOM('error');showToast('Erro ao salvar no Firebase','error');});
   },1500);
@@ -1141,6 +1151,7 @@ function renderSidebar(){
   var _ae=isAEProfile();
   var nav=[
     {id:'dashboard',label:_ae?'Painel de Apostas':'Visão geral',icon:_ae?'⚽':'📊',section:'principal'},
+  {id:'daily',label:'Daily Operation',icon:'📋',section:'principal'},
     // ── apostas (só A>E) ──
     {id:'apostas',label:'Minhas Apostas',icon:'🎯',section:'apostas',onlyAE:true},
     {id:'bancos',label:_ae?'Bancas':'Bancos',icon:'🏦',section:_ae?'apostas':'financeiro'},
@@ -2547,7 +2558,7 @@ function render(){
   var _hiddenPages=['estoque','cardapio','impressoes','pdv','kds','mapa'];
   if(_hiddenPages.indexOf(state.page)!==-1){setState({page:'dashboard'});return;}
 
-  var pages={dashboard:isAEProfile()&&typeof renderDashboardAE==='function'?renderDashboardAE:renderDashboard,apostas:typeof renderApostas==='function'?renderApostas:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,cartoes:renderCartoes,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,administrador:renderAdministrador,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas,usuarios:renderUsuarios,recorrencias:renderRecorrencias,auditoria:renderAuditoria,ajuda:renderAjuda,estoque:renderEstoque,empresa:renderEmpresa,cardapio:renderCardapio,impressoes:renderImpressoes,kds:renderKDS,notas:renderNotas,mapa:renderMapa,pdv:renderPDV};
+  var pages={dashboard:isAEProfile()&&typeof renderDashboardAE==='function'?renderDashboardAE:renderDashboard,apostas:typeof renderApostas==='function'?renderApostas:renderDashboard,bancos:renderBancos,receitas:renderReceitas,dre:renderDRE,vendas:renderVendas,pagar:renderPagar,receber:renderReceber,emprestimos:renderEmprestimos,cartoes:renderCartoes,fornecedores:renderFornecedores,funcionarios:renderFuncionarios,administrador:renderAdministrador,fluxo:renderFluxo,orcamento:renderOrcamento,planejamento:renderPlanejamento,alertas:renderAlertas,exportar:renderExportar,tarefas:renderTarefas,usuarios:renderUsuarios,recorrencias:renderRecorrencias,auditoria:renderAuditoria,ajuda:renderAjuda,estoque:renderEstoque,empresa:renderEmpresa,cardapio:renderCardapio,impressoes:renderImpressoes,kds:renderKDS,notas:renderNotas,mapa:renderMapa,pdv:renderPDV,daily:renderDailyOperation};
   var pageContent=(pages[state.page]||renderDashboard)();
   var content=div('content',[pageContent]);
   var mainCls='main'+(state.sidebarCollapsed?' sb-collapsed':'');
@@ -2592,6 +2603,9 @@ function render(){
   var patrM=renderPagarAtrasadoModal();if(patrM)app.appendChild(patrM);
   // Modal administrador/sócio
   if(typeof renderAdminModal==='function'){var admM=renderAdminModal();if(admM)app.appendChild(admM);}
+  if(typeof renderDailyModal==='function'){var dlM=renderDailyModal();if(dlM)app.appendChild(dlM);}
+  if(typeof renderDailyAdiModal==='function'){var daM=renderDailyAdiModal();if(daM)app.appendChild(daM);}
+  if(typeof renderDailyTemplatesModal==='function'){var dtM=renderDailyTemplatesModal();if(dtM)app.appendChild(dtM);}
   var alertaBanner=typeof renderAlertaBanner==='function'?renderAlertaBanner():null;
   if(alertaBanner)app.appendChild(alertaBanner);
   if(state.toast){
@@ -2640,6 +2654,7 @@ function render(){
 <script src="js/page-cardapio.js"></script>
 <script src="js/page-kds.js"></script>
 <script src="js/page-pdv.js"></script>
+<script src="js/page-daily.js"></script>
 <script src="js/background-sync.js"></script>
 <script>
 // ── TEMA ──────────────────────────────────────────────────────────────────────
