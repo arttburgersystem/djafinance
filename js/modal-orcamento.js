@@ -17,7 +17,7 @@ function renderOrcamentoModal(){
     var tipo=g('tipo')||vals.tipo;
     var cats=tipo==='receita'?catsRec:catsPagar;
     var d={
-      id:edit.id||Date.now(),
+      id:edit.id||uid(),
       profile:pf,
       tipo:tipo,
       categoria:g('categoria')||cats[0]||'',

@@ -111,9 +111,10 @@ function buildFornecedorInput(currentValue, currentId){
         if(selectedIndex>=0&&filtered[selectedIndex])selectItem(filtered[selectedIndex]);
         else if(filtered.length===0&&inputEl.value.trim()){
           var nome=inputEl.value.trim();
-          var novo={id:'forn_'+Date.now(),nome:nome,profile:state.profile,tipo:'fornecedor',documento:'',telefone:'',email:'',notas:''};
-          state.fornecedores=(state.fornecedores||[]).concat([novo]);
-          lsSet('fornecedores',state.fornecedores);
+          var novo={id:uid(),nome:nome,profile:state.profile,tipo:'fornecedor',documento:'',telefone:'',email:'',notas:''};
+          var novaListaForn=(state.fornecedores||[]).concat([novo]);
+          lsSet('fornecedores',novaListaForn);
+          setState({fornecedores:novaListaForn});
           scheduleSave();
           hiddenEl.value=novo.id;
           closeDropdown();

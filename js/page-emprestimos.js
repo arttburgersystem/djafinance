@@ -158,7 +158,7 @@ function renderEmprestimos(){
       var novasContas=(state.contas||[]).concat([novaConta]);
 
       // 3. Débita do banco
-      var novosBancos=state.bancos.map(function(b){
+      var novosBancos=(state.bancos||[]).map(function(b){
         return b.id===bancoId?Object.assign({},b,{saldo:(b.saldo||0)-valor}):b;
       });
 

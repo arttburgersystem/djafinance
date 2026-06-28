@@ -751,19 +751,19 @@ function scheduleSave(){
 }
 
 // ── AÇÕES ────────────────────────────────────────────────────────────────────
-function addConta(item){var c=state.contas.concat([item]);setState({contas:c,modal:null});scheduleSave();showToast('Lançamento adicionado!');if(typeof logAudit==='function')logAudit('criou lançamento',item.descricao+' '+fmtMoney(item.valor));}
-function deleteConta(id){var item=state.contas.find(function(x){return x.id===id;});var c=state.contas.filter(function(x){return x.id!==id;});setState({contas:c});scheduleSave();showToast('Removido','error');if(typeof logAudit==='function'&&item)logAudit('excluiu lançamento',item.descricao+' '+fmtMoney(item.valor));}
-function updateConta(item){var c=state.contas.map(function(x){return x.id===item.id?item:x;});setState({contas:c,modal:null});scheduleSave();showToast('Atualizado!');}
-function addMeta(m){var ms=state.metas.concat([m]);setState({metas:ms,metaModal:null});scheduleSave();showToast('Meta criada!');}
-function deleteMeta(id){var ms=state.metas.filter(function(x){return x.id!==id;});setState({metas:ms});scheduleSave();showToast('Meta removida','error');}
-function updateMeta(m){var ms=state.metas.map(function(x){return x.id===m.id?m:x;});setState({metas:ms,metaModal:null});scheduleSave();showToast('Meta atualizada!');}
-function addReceita(r){var rs=state.receitas.concat([r]);lsSet('receitas',rs);setState({receitas:rs,receitaModal:null});scheduleSave();showToast('Receita registrada!');if(typeof logAudit==='function')logAudit('registrou receita',r.descricao+' '+fmtMoney(r.valor));}
+function addConta(item){var c=(state.contas||[]).concat([item]);setState({contas:c,modal:null});scheduleSave();showToast('Lançamento adicionado!');if(typeof logAudit==='function')logAudit('criou lançamento',item.descricao+' '+fmtMoney(item.valor));}
+function deleteConta(id){var item=(state.contas||[]).find(function(x){return x.id===id;});var c=(state.contas||[]).filter(function(x){return x.id!==id;});setState({contas:c});scheduleSave();showToast('Removido','error');if(typeof logAudit==='function'&&item)logAudit('excluiu lançamento',item.descricao+' '+fmtMoney(item.valor));}
+function updateConta(item){var c=(state.contas||[]).map(function(x){return x.id===item.id?item:x;});setState({contas:c,modal:null});scheduleSave();showToast('Atualizado!');}
+function addMeta(m){var ms=(state.metas||[]).concat([m]);setState({metas:ms,metaModal:null});scheduleSave();showToast('Meta criada!');}
+function deleteMeta(id){var ms=(state.metas||[]).filter(function(x){return x.id!==id;});setState({metas:ms});scheduleSave();showToast('Meta removida','error');}
+function updateMeta(m){var ms=(state.metas||[]).map(function(x){return x.id===m.id?m:x;});setState({metas:ms,metaModal:null});scheduleSave();showToast('Meta atualizada!');}
+function addReceita(r){var rs=(state.receitas||[]).concat([r]);lsSet('receitas',rs);setState({receitas:rs,receitaModal:null});scheduleSave();showToast('Receita registrada!');if(typeof logAudit==='function')logAudit('registrou receita',r.descricao+' '+fmtMoney(r.valor));}
 function deleteReceita(id){
-  var old=state.receitas.find(function(x){return x.id===id;});
-  var rs=state.receitas.filter(function(x){return x.id!==id;});
-  var bPatch=state.bancos;
+  var old=(state.receitas||[]).find(function(x){return x.id===id;});
+  var rs=(state.receitas||[]).filter(function(x){return x.id!==id;});
+  var bPatch=state.bancos||[];
   if(old&&old.banco){
-    bPatch=state.bancos.map(function(b){return b.id===old.banco?Object.assign({},b,{saldo:b.saldo-(old.valor||0)}):b;});
+    bPatch=(state.bancos||[]).map(function(b){return b.id===old.banco?Object.assign({},b,{saldo:b.saldo-(old.valor||0)}):b;});
     lsSet('bancos',bPatch);
   }
   lsSet('receitas',rs);
@@ -771,7 +771,7 @@ function deleteReceita(id){
   scheduleSave();
   showToast('Receita removida','error');
 }
-function updateReceita(r){var rs=state.receitas.map(function(x){return x.id===r.id?r:x;});lsSet('receitas',rs);setState({receitas:rs,receitaModal:null});scheduleSave();showToast('Receita atualizada!');}
+function updateReceita(r){var rs=(state.receitas||[]).map(function(x){return x.id===r.id?r:x;});lsSet('receitas',rs);setState({receitas:rs,receitaModal:null});scheduleSave();showToast('Receita atualizada!');}
 function saveVenda(v){
   var taxas=state.taxas||TAXAS_DEFAULT;
   var vendas=(state.vendas||[]);

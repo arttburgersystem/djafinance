@@ -1047,7 +1047,7 @@ function renderEstProdutos() {
         }},'✏️'),
         el('button',{class:'btn-ghost',style:{fontSize:'11px',padding:'5px 8px',color:'var(--danger)'},title:'Inativar',onclick:function(){
           if(!confirm('Inativar "'+p.nome+'"? Movimentações são mantidas.'))return;
-          var np=state.produtos.map(function(x){return x.id===p.id?Object.assign({},x,{ativo:false}):x;});
+          var np=(state.produtos||[]).map(function(x){return x.id===p.id?Object.assign({},x,{ativo:false}):x;});
           logAudit('inativou produto',p.nome);
           setState({produtos:np});scheduleSave();showToast('Produto inativado','info');
         }},'🗑️'),
@@ -1705,8 +1705,10 @@ function renderNFModal() {
       dataEmissao:m.dataEmissao||today(), dataEntrada:m.dataEntrada||today(),
       itens:itens, total:nfTotal, data:today(),
     };
-    setState({produtos:novosProd, movEstoque:novosMovs, contas:novasContas,
-      notasFiscais:(state.notasFiscais||[]).concat([nfRecord]), nfModal:null});
+    lsSet('produtos',novosProd);lsSet('movEstoque',novosMovs);lsSet('contas',novasContas);
+    var novasNFs=(state.notasFiscais||[]).concat([nfRecord]);lsSet('notasFiscais',novasNFs);
+    setState({produtos:novosProd,movEstoque:novosMovs,contas:novasContas,notasFiscais:novasNFs,nfModal:null});
+    scheduleSave();
   }
 
   var modalEl = el('div',{class:'modal-overlay',onclick:function(e){if(e.target===this)setState({nfModal:null});}},[

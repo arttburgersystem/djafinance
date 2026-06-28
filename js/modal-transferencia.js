@@ -30,7 +30,7 @@ function renderTransfModal(){
     });
 
     var transf={
-      id:Date.now(),
+      id:uid(),
       de:deId,
       para:paraId,
       valor:valor,

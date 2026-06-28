@@ -18,7 +18,7 @@ function renderReceitaModal(){
 
   function save(){
     var d={
-      id:        edit.id||Date.now(),
+      id:        edit.id||uid(),
       descricao: g('descricao'),
       valor:     parseFloat(g('valor'))||0,
       categoria: g('categoria'),

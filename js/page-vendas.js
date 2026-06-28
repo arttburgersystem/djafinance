@@ -1,11 +1,15 @@
 // ── VENDAS DO DIA — exclusivo Artt Burger ────────────────────────────────────
 var _vcalYear=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'})).getFullYear();
 var _vcalMonth=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'})).getMonth();
+var _calcKeyListener=null;
 var _closeOnOutside=function(e){
   var cal=document.getElementById('cal-popup');
   var calc=document.getElementById('calc-popup');
   if(cal&&!cal.contains(e.target)&&!e.target.closest('#btn-cal-open'))cal.remove();
-  if(calc&&!calc.contains(e.target)&&!e.target.closest('#btn-calc-open'))calc.remove();
+  if(calc&&!calc.contains(e.target)&&!e.target.closest('#btn-calc-open')){
+    calc.remove();
+    if(_calcKeyListener){document.removeEventListener('keydown',_calcKeyListener);_calcKeyListener=null;}
+  }
 };
 
 function renderVendas(){
@@ -49,6 +53,7 @@ function renderVendas(){
       var e=document.getElementById(id);if(e)e.remove();
     });
     document.removeEventListener('click',_closeOnOutside);
+    if(_calcKeyListener){document.removeEventListener('keydown',_calcKeyListener);_calcKeyListener=null;}
   }
 
 
@@ -208,7 +213,7 @@ function renderVendas(){
       var k=map[e.key]||e.key;
       if('0123456789.+-×÷C=⌫%'.includes(k))pressCalc(k);
     }
-    document.addEventListener('keydown',onCalcKey);
+    _calcKeyListener=onCalcKey;document.addEventListener('keydown',_calcKeyListener);
 
     var popup=el('div',{id:'calc-popup',style:{
       position:'fixed',zIndex:'9000',
@@ -219,7 +224,7 @@ function renderVendas(){
       el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}},[
         el('span',{style:{fontSize:'12px',fontWeight:'700',color:'var(--text3)'}},'Calculadora'),
         el('button',{style:{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:'16px'},
-          onclick:function(){popup.remove();document.removeEventListener('keydown',onCalcKey);}
+          onclick:function(){popup.remove();if(_calcKeyListener){document.removeEventListener('keydown',_calcKeyListener);_calcKeyListener=null;}}
         },'×'),
       ]),
       dispEl,

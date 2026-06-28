@@ -107,11 +107,11 @@ function renderModal(){
     }
 
     var novasContas;
-    var novosBancos=state.bancos;
+    var novosBancos=state.bancos||[];
     var statusPago=d.status==='pago'||d.status==='recebido';
 
     if(edit.id){
-      var old=state.contas.find(function(x){return x.id===edit.id;});
+      var old=(state.contas||[]).find(function(x){return x.id===edit.id;});
       if(old&&(old.status==='pago'||old.status==='recebido')&&old.banco){
         novosBancos=novosBancos.map(function(b){
           return b.id===old.banco
@@ -119,7 +119,7 @@ function renderModal(){
             :b;
         });
       }
-      novasContas=state.contas.map(function(x){return x.id===d.id?d:x;});
+      novasContas=(state.contas||[]).map(function(x){return x.id===d.id?d:x;});
     } else {
       novasContas=(state.contas||[]).concat([d]);
     }

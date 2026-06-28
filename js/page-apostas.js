@@ -435,7 +435,7 @@ function renderApostas(){
   });
   searchInp.oninput=function(){
     var val=this.value;var pos=this.selectionStart;
-    state.apostaBusca=val;render();
+    setState({apostaBusca:val});
     var inp=document.getElementById('_ae_busca');
     if(inp){inp.focus();try{inp.setSelectionRange(pos,pos);}catch(e){}}
   };
