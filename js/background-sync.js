@@ -116,7 +116,8 @@ function _temModalAberto() {
     state.bancoModal || state.transfModal || state.receitaModal || state.cartaoModal ||
     state.perfilModal || state.metaModal || state.orcamentoModal || state.buscaModal ||
     state.kdsModal || state.pedidoModal || state.impModal || state.adminModal ||
-    state.pagamentoFaturaModal);
+    state.pagamentoFaturaModal ||
+    state.dailyModal || state.dailyAdiModal || state.dailyTemplatesOpen);
 }
 
 // ── INDICADOR VISUAL DE SINCRONIZAÇÃO ─────────────────────────────────────────

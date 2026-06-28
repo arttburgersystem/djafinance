@@ -105,10 +105,12 @@ function renderDailyAdiModal(){
   var id=state.dailyAdiModal;if(!id)return null;
   var op=(state.dailyOps||[]).find(function(x){return x.id===id;});if(!op)return null;
   var motiEl=el('textarea',{class:'form-input',rows:'2',placeholder:'Motivo (opcional)',style:{resize:'vertical',minHeight:'56px'}});
-  var dtEl=el('input',{class:'form-input',type:'date'});dtEl.value=today();
+  var dtEl=el('input',{class:'form-input',type:'date'});
+  var _amanha=new Date(today()+'T12:00:00');_amanha.setDate(_amanha.getDate()+1);
+  dtEl.value=_amanha.toISOString().substring(0,10);
   return el('div',{class:'modal-overlay',onclick:function(e){if(e.target===this)setState({dailyAdiModal:null});}},[
     el('div',{class:'modal-box',style:{maxWidth:'380px',width:'95vw'}},[
-      el('h3',{style:{margin:'0 0 12px',fontSize:'16px',color:'var(--text)'}},'↻ Adiar / Cancelar'),
+      el('h3',{style:{margin:'0 0 12px',fontSize:'16px',color:'var(--text)'}},'↻ Adiar · ✕ Cancelar'),
       el('p',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'14px',fontWeight:'600'}},op.nome),
       div('form-group',[el('label',{class:'form-label'},'Adiar para:'),dtEl]),
       div('form-group',[el('label',{class:'form-label'},'Motivo (opcional):'),motiEl]),
@@ -128,9 +130,9 @@ function renderDailyModal(){
   var m=state.dailyModal;if(!m)return null;
   var edit=m.editItem||{};var isEdit=!!edit.id;var isOneOff=!!m.oneOff;
   function g(id){var e=document.getElementById('do-'+id);return e?e.value:'';}
-  var diasSel=(edit.dias||[1,2,3,4,5]).slice();
+  var diasSel=(m._diasSel!==undefined?m._diasSel:(edit.dias||[1,2,3,4,5])).slice();
   var diasLabels=['D','S','T','Q','Q','S','S'];
-  var corSel=edit.cor||'gold';
+  var corSel=m._corSel||edit.cor||'gold';
   var corMap={gold:'var(--gold)',blue:'var(--blue)',green:'var(--green)',red:'var(--red)',purple:'#9c59b6'};
 
   var diasBtns=[0,1,2,3,4,5,6].map(function(i){
@@ -141,6 +143,7 @@ function renderDailyModal(){
       cursor:'pointer',fontSize:'12px',fontWeight:'700',transition:'all .15s',
     },onclick:function(){
       var idx=diasSel.indexOf(i);if(idx>=0)diasSel.splice(idx,1);else diasSel.push(i);
+      if(state.dailyModal)state.dailyModal._diasSel=diasSel.slice();
       var now=diasSel.indexOf(i)>=0;
       this.style.background=now?'var(--gold)':'var(--bg3)';this.style.color=now?'#000':'var(--text)';
     }},diasLabels[i]);
@@ -153,6 +156,7 @@ function renderDailyModal(){
       background:corMap[c],border:corSel===c?'2px solid var(--text)':'2px solid transparent',transition:'border .15s',
     },onclick:function(){
       corSel=c;
+      if(state.dailyModal)state.dailyModal._corSel=c;
       var all=this.parentElement.querySelectorAll('button');
       all.forEach(function(b){b.style.border='2px solid transparent';});
       this.style.border='2px solid var(--text)';
@@ -188,7 +192,7 @@ function renderDailyModal(){
       var def={
         id:edit.id||uid(),profile:state.profile,
         nome:nome,descricao:g('descricao'),horario:g('horario'),
-        dias:diasSel.slice().sort(),alertaMinutos:parseInt(g('alerta'))||15,
+        dias:diasSel.slice().sort(),alertaMinutos:(function(){var s=g('alerta');return s!==''?(parseInt(s)||0):15;})(),
         cor:corSel,prioridade:g('prioridade')||'media',ativo:true,
       };
       var defs=isEdit
@@ -234,7 +238,7 @@ function renderDailyModal(){
       ]):null,
       !isOneOff?div('form-group',[
         el('label',{class:'form-label'},'Alertar (min antes):'),
-        inp('alerta','number','15',edit.alertaMinutos||15,{min:'0',max:'120',style:{width:'100px'}}),
+        inp('alerta','number','15',edit.alertaMinutos!=null?edit.alertaMinutos:15,{min:'0',max:'120',style:{width:'100px'}}),
       ]):null,
       div('form-group',[
         el('label',{class:'form-label'},'Cor:'),
@@ -377,8 +381,10 @@ function _doColuna(titulo,icone,cor,cards){
 function renderDailyOperation(){
   if(_doTimerRef)clearInterval(_doTimerRef);
   _doTimerRef=setInterval(function(){
-    if(state.page==='daily')setState({_doTick:Date.now()});
-    else{clearInterval(_doTimerRef);_doTimerRef=null;}
+    if(state.page==='daily'){
+      if(!state.dailyModal&&!state.dailyAdiModal&&!state.dailyTemplatesOpen)
+        setState({_doTick:Date.now()});
+    } else {clearInterval(_doTimerRef);_doTimerRef=null;}
   },60000);
 
   _doInit();
@@ -396,7 +402,8 @@ function renderDailyOperation(){
   var opPend=ops.filter(function(op){return op.status==='pendente';}).sort(function(a,b){
     return a.data<b.data?-1:1;
   });
-  var opCancAdiad=ops.filter(function(op){return op.status==='cancelada'||op.status==='adiada';});
+  var opAdiada=ops.filter(function(op){return op.status==='adiada';});
+  var opCanc=ops.filter(function(op){return op.status==='cancelada';});
 
   // Data display
   var dObj=new Date(hj+'T12:00:00');
@@ -456,13 +463,14 @@ function renderDailyOperation(){
   // Kanban
   var board=el('div',{style:{
     display:'grid',
-    gridTemplateColumns:'repeat(4,minmax(210px,1fr))',
+    gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',
     gap:'12px',alignItems:'start',
   }},[
     _doColuna('Tarefa do Dia','📋','var(--gold)',opHoje.map(_doCard)),
     _doColuna('Concluídas','✅','var(--green)',opConc.map(_doCard)),
     _doColuna('Pendentes','⏰','var(--red)',opPend.map(_doCard)),
-    _doColuna('Cancelada / Adiada','🚫','var(--text3)',opCancAdiad.map(_doCard)),
+    _doColuna('Adiadas','↻','var(--blue)',opAdiada.map(_doCard)),
+    _doColuna('Canceladas','🚫','var(--text3)',opCanc.map(_doCard)),
   ]);
 
   return div('',[
