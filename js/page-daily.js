@@ -46,22 +46,34 @@ function _doInit(){
   var defs=(state.dailyTaskDefs||[]).filter(function(d){return d.profile===pf&&d.ativo;});
   var ops=(state.dailyOps||[]).slice();var changed=false;
 
+  // 0. Deduplicar instâncias ativas por defId (limpa dados gerados pelo código antigo)
+  var _seen={},_drop={};
+  ops.forEach(function(op){
+    if(!op.defId||op.profile!==pf)return;
+    if(['programacao','hoje','pendente','adiada'].indexOf(op.status)<0)return;
+    var k=op.defId;
+    if(!_seen[k]){_seen[k]=op;}
+    else{
+      var prev=_seen[k];
+      var newer=(op.data||'')>(prev.data||'')||((op.data===prev.data)&&(op.criadaEm||'')>(prev.criadaEm||''));
+      if(newer){_drop[prev.id]=true;_seen[k]=op;}else{_drop[op.id]=true;}
+    }
+  });
+  if(Object.keys(_drop).length){ops=ops.filter(function(op){return !_drop[op.id];});changed=true;}
+
   // 1. 'hoje' de dias anteriores → 'pendente' (fica em Tarefa do Dia como atrasada)
   ops=ops.map(function(op){
     if(op.profile===pf&&op.status==='hoje'&&op.data<hj){changed=true;return Object.assign({},op,{status:'pendente'});}
     return op;
   });
 
-  // 2. 'concluida' de ciclos anteriores (com defId) → volta para 'programacao'
-  ops=ops.map(function(op){
-    if(op.profile===pf&&op.status==='concluida'&&op.data<hj&&op.defId){
-      changed=true;
-      return Object.assign({},op,{status:'programacao',concluidaEm:null,data:hj,adiada:null,motivoCancelamento:''});
-    }
-    return op;
+  // 2. 'concluida' de ciclos anteriores (com defId) → descarta (template gera nova instância no ciclo seguinte)
+  ops=ops.filter(function(op){
+    if(op.profile===pf&&op.status==='concluida'&&op.data<hj&&op.defId){changed=true;return false;}
+    return true;
   });
 
-  // 3. Garantir que cada template ativo tenha instância 'programacao' (se não houver ativa ou cancelada hoje)
+  // 3. Garantir que cada template ativo tenha instância para o ciclo atual (se não houver ativa ou cancelada hoje)
   defs.forEach(function(def){
     var temAtiva=ops.some(function(op){
       return op.defId===def.id&&op.profile===pf&&
@@ -71,19 +83,21 @@ function _doInit(){
       return op.defId===def.id&&op.profile===pf&&op.status==='cancelada'&&op.data===hj;
     });
     if(!temAtiva&&!temCanceladaHoje){
+      var dias=def.dias||[];
+      var status=(hora06&&(!dias.length||dias.indexOf(dow)>=0))?'hoje':'programacao';
       ops.push({
         id:uid(),defId:def.id,profile:pf,
         nome:def.nome,descricao:def.descricao||'',horario:def.horario||'',
         cor:def.cor||'gold',prioridade:def.prioridade||'media',
         alertaMinutos:def.alertaMinutos!=null?def.alertaMinutos:15,
-        data:hj,status:'programacao',criadaEm:new Date().toISOString(),
+        data:hj,status:status,criadaEm:new Date().toISOString(),
         concluidaEm:null,canceladaEm:null,adiada:null,motivoCancelamento:'',
       });
       changed=true;
     }
   });
 
-  // 4. Às 06:00: mover 'programacao' de hoje → 'hoje' (Tarefa do Dia)
+  // 4. Às 06:00: mover instâncias 'programacao' de hoje para Tarefa do Dia
   if(hora06){
     ops=ops.map(function(op){
       if(op.profile===pf&&op.status==='programacao'){
@@ -385,6 +399,44 @@ function renderDailyTemplatesModal(){
   ]);
 }
 
+// ── card de template (coluna Programação — painel permanente de rotinas) ───────
+function _doDefCard(def){
+  var pf=state.profile,hj=today(),dow=new Date(hj+'T12:00:00').getDay();
+  var diasN=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  var dias=def.dias||[];
+  var diasTxt=dias.length?dias.map(function(i){return diasN[i];}).join(', '):'Todos os dias';
+  var corMap={gold:'var(--gold)',blue:'var(--blue)',green:'var(--green)',red:'var(--red)',purple:'#9c59b6'};
+  var cor=corMap[def.cor||'gold']||'var(--gold)';
+  var ehHojeDow=!dias.length||dias.indexOf(dow)>=0;
+  // instância mais recente desta rotina
+  var inst=(state.dailyOps||[]).filter(function(op){
+    return op.defId===def.id&&op.profile===pf;
+  }).sort(function(a,b){return(b.data||'')>(a.data||'')?1:-1;})[0];
+  var status=inst?inst.status:'none';
+  var sm={
+    'hoje':     {l:'📋 Em Tarefa do Dia', c:'var(--gold)',  b:'rgba(229,172,0,.12)'},
+    'pendente': {l:'⚠️ Atrasada',          c:'var(--red)',   b:'rgba(224,82,82,.1)'},
+    'concluida':{l:'✅ Concluída hoje',    c:'var(--green)', b:'rgba(39,174,96,.1)'},
+    'programacao':{l:'⏸ Aguardando',      c:'var(--text3)', b:'rgba(255,255,255,.05)'},
+    'adiada':   {l:'↻ Adiada',             c:'var(--blue)',  b:'rgba(52,152,219,.1)'},
+    'cancelada':{l:'✕ Cancelada',          c:'var(--text3)', b:'rgba(255,255,255,.05)'},
+    'none':     {l:'📅 Agendada',          c:'var(--text3)', b:'rgba(255,255,255,.05)'},
+  };
+  var si=sm[status]||sm['none'];
+  return el('div',{style:{
+    background:'var(--bg3)',borderRadius:'8px',padding:'12px',marginBottom:'8px',
+    borderLeft:'3px solid '+cor,border:'1px solid var(--border)',
+  }},[
+    el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}},[
+      el('div',{style:{fontWeight:'600',fontSize:'13px',color:'var(--text)',flex:'1',marginRight:'6px',lineHeight:'1.3'}},def.nome),
+      def.horario?el('span',{style:{fontSize:'11px',color:'var(--text3)',whiteSpace:'nowrap',fontWeight:'700',fontFamily:'monospace'}},def.horario):null,
+    ].filter(Boolean)),
+    el('div',{style:{fontSize:'11px',color:ehHojeDow?'var(--gold)':'var(--text3)',marginBottom:'6px'}},
+      (ehHojeDow?'● ':'○ ')+diasTxt),
+    el('div',{style:{fontSize:'11px',fontWeight:'700',color:si.c,padding:'3px 8px',borderRadius:'4px',background:si.b,display:'inline-block'}},si.l),
+  ]);
+}
+
 // ── card de tarefa ────────────────────────────────────────────────────────────
 function _doCard(op){
   var alerta=_doDeveAlertar(op);
@@ -515,13 +567,11 @@ function renderDailyOperation(){
   var pf=state.profile,hj=today();
   var ops=(state.dailyOps||[]).filter(function(op){return op.profile===pf;});
 
-  // Programação: instâncias aguardando ativação (não é hora do dia delas ainda)
-  var opProg=ops.filter(function(op){return op.status==='programacao';}).sort(function(a,b){
-    var dA=(state.dailyTaskDefs||[]).find(function(d){return d.id===a.defId;})||{};
-    var dB=(state.dailyTaskDefs||[]).find(function(d){return d.id===b.defId;})||{};
-    var dw=new Date(hj+'T12:00:00').getDay();
-    var aH=!dA.dias||!dA.dias.length||dA.dias.indexOf(dw)>=0;
-    var bH=!dB.dias||!dB.dias.length||dB.dias.indexOf(dw)>=0;
+  // Programação: painel permanente de rotinas (mostra defs, não instâncias)
+  var dow0=new Date(hj+'T12:00:00').getDay();
+  var defs=(state.dailyTaskDefs||[]).filter(function(d){return d.profile===pf&&d.ativo;}).sort(function(a,b){
+    var aH=!a.dias||!a.dias.length||a.dias.indexOf(dow0)>=0;
+    var bH=!b.dias||!b.dias.length||b.dias.indexOf(dow0)>=0;
     if(aH&&!bH)return -1;if(!aH&&bH)return 1;
     if(!a.horario&&!b.horario)return 0;if(!a.horario)return 1;if(!b.horario)return -1;
     return a.horario<b.horario?-1:1;
@@ -566,9 +616,9 @@ function renderDailyOperation(){
         dentroHorario?('⏰ '+hora+' · Horário comercial ativo'):('⏰ '+hora+' · Fora do horário comercial (06:00–18:00)')),
     ]),
     el('div',{style:{display:'flex',gap:'14px',alignItems:'center',flexWrap:'wrap'}},[
-      opProg.length>0?el('div',{style:{textAlign:'center'}},[
-        el('div',{style:{fontSize:'22px',fontWeight:'800',color:'var(--text2)',lineHeight:'1'}},String(opProg.length)),
-        el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px'}},'Programadas'),
+      defs.length>0?el('div',{style:{textAlign:'center'}},[
+        el('div',{style:{fontSize:'22px',fontWeight:'800',color:'var(--text2)',lineHeight:'1'}},String(defs.length)),
+        el('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px'}},'Rotinas'),
       ]):null,
       el('div',{style:{textAlign:'center'}},[
         el('div',{style:{fontSize:'22px',fontWeight:'800',color:'var(--gold)',lineHeight:'1'}},String(opAFazer.length)),
@@ -608,7 +658,7 @@ function renderDailyOperation(){
     gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',
     gap:'12px',alignItems:'start',
   }},[
-    _doColuna('Programação','📅','var(--text2)',opProg.map(_doCard)),
+    _doColuna('Programação','📅','var(--text2)',defs.map(_doDefCard)),
     _doColuna('Tarefa do Dia','📋','var(--gold)',opHoje.map(_doCard)),
     _doColuna('Concluídas','✅','var(--green)',opConc.map(_doCard)),
     _doColuna('Adiadas','↻','var(--blue)',opAdiada.map(_doCard)),
