@@ -117,7 +117,8 @@ function _temModalAberto() {
     state.perfilModal || state.metaModal || state.orcamentoModal || state.buscaModal ||
     state.kdsModal || state.pedidoModal || state.impModal || state.adminModal ||
     state.pagamentoFaturaModal ||
-    state.dailyModal || state.dailyAdiModal || state.dailyTemplatesOpen);
+    state.dailyModal || state.dailyAdiModal || state.dailyTemplatesOpen ||
+    state._reprogModal);
 }
 
 // ── INDICADOR VISUAL DE SINCRONIZAÇÃO ─────────────────────────────────────────
