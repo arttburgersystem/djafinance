@@ -1621,7 +1621,10 @@ function renderPagar(){
     div('page-header',[el('h1',{},'Despesas'),el('p',{},'Gerencie seus compromissos e vencimentos')]),
     div('action-row',[
       el('div',{style:{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}},[sb,div('filter-row',chips),mesNav]),
-      el('button',{class:'btn-primary',onclick:function(){setState({modal:{tipo:'pagar',editItem:null}});}}, '+ Nova conta'),
+      el('div',{style:{display:'flex',gap:'8px'}},[
+        el('button',{class:'btn-ghost',style:{fontSize:'13px'},onclick:function(){if(typeof _importarAbrir==='function')_importarAbrir();}},'📥 Importar Extrato'),
+        el('button',{class:'btn-primary',onclick:function(){setState({modal:{tipo:'pagar',editItem:null}});}}, '+ Nova conta'),
+      ]),
     ]),
     kpiBar,
     div('card',[div('table-wrap',[el('table',{},[
@@ -1837,7 +1840,10 @@ function renderReceber(){
           el('h1',{},'💰 Contas a Receber'),
           el('p',{},'Entradas previstas e realizadas — com controle de banco e forma de recebimento'),
         ]),
-        btn('btn-primary','+ Nova entrada',function(){setState({modal:{tipo:'receber',editItem:null}});}),
+        el('div',{style:{display:'flex',gap:'8px'}},[
+          el('button',{class:'btn-ghost',style:{fontSize:'13px'},onclick:function(){if(typeof _importarAbrir==='function')_importarAbrir();}},'📥 Importar Extrato'),
+          btn('btn-primary','+ Nova entrada',function(){setState({modal:{tipo:'receber',editItem:null}});}),
+        ]),
       ]),
     ]),
     kpis,
