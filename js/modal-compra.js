@@ -4,129 +4,125 @@ function renderCompraModal() {
   var m = state.compraModal;
   if (!m) return null;
 
-  var edit = m.editItem || {};
+  var edit   = m.editItem || {};
   var isEdit = !!edit.id;
 
-  // Helpers de campo
   function g(id) {
     var e = document.getElementById('cm-' + id);
     return e ? e.value : '';
   }
 
-  function inp(id, type, ph, val, extra) {
-    var attrs = Object.assign({ class: 'form-input', type: type || 'text', id: 'cm-' + id, placeholder: ph || '' }, extra || {});
-    var i = el('input', attrs);
-    if (val !== undefined && val !== null) i.value = String(val);
+  function mkInp(id, type, ph, val) {
+    var i = el('input', { class: 'form-input', type: type || 'text', id: 'cm-' + id, placeholder: ph || '' });
+    if (val !== undefined && val !== null && val !== '') i.value = String(val);
     return i;
   }
 
-  function sel(id, opts, val) {
+  function mkSel(id, optsArr, selVal) {
     var s = el('select', { class: 'form-input', id: 'cm-' + id });
-    opts.forEach(function(o) {
-      var opt = typeof o === 'string'
-        ? el('option', { value: o }, o)
-        : el('option', { value: o.v }, o.l);
-      if ((typeof o === 'string' ? o : o.v) === val) opt.selected = true;
+    optsArr.forEach(function(o) {
+      var v = typeof o === 'string' ? o : o.v;
+      var l = typeof o === 'string' ? o : o.l;
+      var opt = el('option', { value: v }, l);
+      if (v === selVal) opt.selected = true;
       s.appendChild(opt);
     });
     return s;
   }
 
-  function txt(id, ph, val) {
-    var t = el('textarea', { class: 'form-input', id: 'cm-' + id, placeholder: ph || '', rows: '2', style: { resize: 'vertical', minHeight: '56px' } });
-    t.value = val || '';
-    return t;
+  function fg(label, child) {
+    return div('form-group', [el('label', { class: 'form-label' }, label), child]);
   }
 
-  function fgroup(label, child, hint) {
-    return div('form-group', [
-      el('label', { class: 'form-label' }, label),
-      child,
-      hint ? el('small', { style: { color: 'var(--text3)', fontSize: '11px' } }, hint) : null,
-    ].filter(Boolean));
+  // recalcula valor total ao mudar qtd ou preço
+  function recalc() {
+    var q = parseFloat((document.getElementById('cm-quantidade') || {}).value) || 0;
+    var p = parseFloat((document.getElementById('cm-precoUnit')  || {}).value) || 0;
+    var t = document.getElementById('cm-valorTotal');
+    if (t && q > 0 && p > 0) t.value = (q * p).toFixed(2);
   }
 
-  // Atualizar valor total automaticamente
-  function recalcTotal() {
-    var qtd = parseFloat(document.getElementById('cm-quantidade') && document.getElementById('cm-quantidade').value) || 0;
-    var pu  = parseFloat(document.getElementById('cm-precoUnit') && document.getElementById('cm-precoUnit').value) || 0;
-    var tot = document.getElementById('cm-valorTotal');
-    if (tot) tot.value = qtd > 0 && pu > 0 ? (qtd * pu).toFixed(2) : (edit.valorTotal || '');
-  }
+  // Fornecedores do perfil
+  var forns = (state.fornecedores || []).filter(function(f) {
+    return !f.profile || f.profile === state.profile;
+  });
+  var fornOpts = [{ v: '', l: '— Selecionar —' }].concat(forns.map(function(f) {
+    return { v: f.id, l: f.nome };
+  }));
 
-  // Fornecedores disponíveis
-  var forns = (state.fornecedores || []).filter(function(f) { return f.profile === state.profile || !f.profile; });
-  var fornOpts = [{ v: '', l: '— Selecionar fornecedor —' }].concat(forns.map(function(f) { return { v: f.id, l: f.nome }; }));
+  // Bancos do perfil
+  var bancoOpts = [{ v: '', l: '— Conta —' }].concat(
+    (state.bancos || []).filter(function(b) { return b.profile === state.profile; })
+      .map(function(b) { return { v: b.id, l: b.nome }; })
+  );
 
-  // Bancos disponíveis
-  var bancos = (state.bancos || []).filter(function(b) { return b.profile === state.profile; });
-  var bancoOpts = [{ v: '', l: '— Selecionar conta —' }].concat(bancos.map(function(b) { return { v: b.id, l: b.nome }; }));
-
-  // Categorias (padrão + customizadas)
   var catOpts = ['— Categoria —'].concat(_COMPRAS_CATS);
 
+  var statusOpts = [
+    { v: 'pendente', l: 'Pendente' },
+    { v: 'pago',     l: 'Pago'     },
+    { v: 'cancelado',l: 'Cancelado'},
+  ];
+
   function save() {
-    var item       = g('item').trim();
-    var categoria  = g('categoria');
-    var fornId     = g('fornecedorId');
-    var fornNome   = g('fornecedor').trim();
-    var quantidade = parseFloat(g('quantidade')) || 0;
-    var unidade    = g('unidade');
-    var precoUnit  = parseFloat(g('precoUnit')) || 0;
-    var valorTotal = parseFloat(g('valorTotal')) || (quantidade * precoUnit);
-    var dataCompra     = g('dataCompra');
-    var dataVencimento = g('dataVencimento');
-    var dataEntrega    = g('dataEntrega');
-    var formaPagamento = g('formaPagamento');
-    var banco          = g('banco');
-    var status         = g('status');
-    var nf             = g('nf').trim();
-    var obs            = g('obs').trim();
+    var itemNome = g('item').trim();
+    if (!itemNome) { showToast('Informe o nome do item', 'error'); return; }
+    var dataC = g('dataCompra');
+    if (!dataC)    { showToast('Informe a data da compra', 'error'); return; }
 
-    if (!item) { showToast('Informe o nome do item', 'error'); return; }
-    if (!dataCompra) { showToast('Informe a data da compra', 'error'); return; }
+    var cat       = g('categoria');
+    var fornId    = g('fornecedorId');
+    var fornNome  = g('fornecedorNome').trim();
+    var qtd       = parseFloat(g('quantidade')) || 0;
+    var und       = g('unidade');
+    var precoU    = parseFloat(g('precoUnit'))  || 0;
+    var total     = parseFloat(g('valorTotal')) || (qtd * precoU);
+    var dataV     = g('dataVencimento');
+    var dataE     = g('dataEntrega');
+    var forma     = g('formaPagamento');
+    var banco     = g('banco');
+    var status    = g('status') || 'pendente';
+    var nf        = g('nf').trim();
+    var obs       = g('obs').trim();
 
-    // Resolve fornecedor: preferir id se selecionado, senão usar nome livre
-    var fornFinal = fornNome;
+    // resolve nome do fornecedor
     if (fornId) {
       var fObj = forns.find(function(f) { return f.id === fornId; });
-      if (fObj) fornFinal = fObj.nome;
+      if (fObj) fornNome = fObj.nome;
     }
 
     var compra = {
       id:             edit.id || uid(),
       profile:        state.profile,
-      item:           item,
-      categoria:      categoria === '— Categoria —' ? '' : categoria,
-      fornecedorId:   fornId || '',
-      fornecedor:     fornFinal,
-      quantidade:     quantidade,
-      unidade:        unidade,
-      precoUnit:      precoUnit,
-      valorTotal:     valorTotal || 0,
-      dataCompra:     dataCompra,
-      dataVencimento: dataVencimento || '',
-      dataEntrega:    dataEntrega || '',
-      formaPagamento: formaPagamento,
+      item:           itemNome,
+      categoria:      cat === '— Categoria —' ? '' : cat,
+      fornecedorId:   fornId,
+      fornecedor:     fornNome,
+      quantidade:     qtd,
+      unidade:        und,
+      precoUnit:      precoU,
+      valorTotal:     total || 0,
+      dataCompra:     dataC,
+      dataVencimento: dataV,
+      dataEntrega:    dataE,
+      formaPagamento: forma,
       banco:          banco,
-      status:         status || 'pendente',
+      status:         status,
       nf:             nf,
       obs:            obs,
       criadoEm:       edit.criadoEm || new Date().toISOString(),
-      atualizadoEm:   new Date().toISOString(),
     };
 
-    var lista = (state.compras || []);
+    var lista = state.compras || [];
     if (isEdit) {
       lista = lista.map(function(x) { return x.id === compra.id ? compra : x; });
-      showToast('Compra atualizada!');
     } else {
       lista = lista.concat([compra]);
-      showToast('Compra registrada!');
     }
     lsSet('compras', lista);
     setState({ compras: lista, compraModal: null });
     scheduleSave();
+    showToast(isEdit ? 'Compra atualizada!' : 'Compra registrada!');
   }
 
   function excluir() {
@@ -138,101 +134,94 @@ function renderCompraModal() {
     showToast('Compra excluída', 'error');
   }
 
-  // Campos de status disponíveis
-  var statusOpts = [
-    { v: 'pendente',  l: 'Pendente' },
-    { v: 'pago',      l: 'Pago' },
-    { v: 'cancelado', l: 'Cancelado' },
-  ];
+  // Campos de quantidade + unidade em linha
+  var qtdRow = el('div', { style: { display: 'flex', gap: '8px' } });
+  var qtdInp = mkInp('quantidade', 'number', '1', edit.quantidade);
+  qtdInp.setAttribute('min', '0');
+  qtdInp.setAttribute('step', 'any');
+  qtdInp.oninput = recalc;
+  qtdRow.appendChild(el('div', { style: { flex: '2' } }, [qtdInp]));
+  qtdRow.appendChild(el('div', { style: { flex: '1' } }, [mkSel('unidade', _COMPRAS_UNIDADES, edit.unidade || 'un')]));
 
-  // Campos de quantidade + unidade juntos
-  var qtdUndRow = el('div', { style: { display: 'flex', gap: '8px' } }, [
-    el('div', { style: { flex: '2' } }, [inp('quantidade', 'number', '0', edit.quantidade, { min: '0', step: 'any', oninput: recalcTotal })]),
-    el('div', { style: { flex: '1' } }, [sel('unidade', _COMPRAS_UNIDADES, edit.unidade || 'un')]),
-  ]);
+  // Preço + Total em linha
+  var precoRow = el('div', { style: { display: 'flex', gap: '8px' } });
+  var puInp = mkInp('precoUnit', 'number', '0,00', edit.precoUnit);
+  puInp.setAttribute('min', '0');
+  puInp.setAttribute('step', '0.01');
+  puInp.oninput = recalc;
+  var totInp = mkInp('valorTotal', 'number', '0,00', edit.valorTotal);
+  totInp.setAttribute('min', '0');
+  totInp.setAttribute('step', '0.01');
+  precoRow.appendChild(el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Preço unitário (R$)'), puInp]));
+  precoRow.appendChild(el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Valor total (R$)'), totInp]));
 
-  // Preço unit + total
-  var precoRow = el('div', { style: { display: 'flex', gap: '8px' } }, [
-    el('div', { style: { flex: '1' } }, [
-      el('label', { class: 'form-label' }, 'Preço unitário (R$)'),
-      inp('precoUnit', 'number', '0,00', edit.precoUnit, { min: '0', step: '0.01', oninput: recalcTotal }),
-    ]),
-    el('div', { style: { flex: '1' } }, [
-      el('label', { class: 'form-label' }, 'Valor total (R$)'),
-      inp('valorTotal', 'number', '0,00', edit.valorTotal, { min: '0', step: '0.01' }),
-    ]),
-  ]);
+  // Datas
+  var datasRow = el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' } });
+  datasRow.appendChild(el('div', {}, [el('label', { class: 'form-label' }, 'Data da compra *'), mkInp('dataCompra', 'date', '', edit.dataCompra || today())]));
+  datasRow.appendChild(el('div', {}, [el('label', { class: 'form-label' }, 'Vencimento'),        mkInp('dataVencimento', 'date', '', edit.dataVencimento || '')]));
+  datasRow.appendChild(el('div', {}, [el('label', { class: 'form-label' }, 'Prev. entrega'),     mkInp('dataEntrega', 'date', '', edit.dataEntrega || '')]));
 
-  // Linha de datas
-  var datasRow = el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' } }, [
-    el('div', {}, [el('label', { class: 'form-label' }, 'Data da compra'), inp('dataCompra', 'date', '', edit.dataCompra || today())]),
-    el('div', {}, [el('label', { class: 'form-label' }, 'Vencimento'), inp('dataVencimento', 'date', '', edit.dataVencimento || '')]),
-    el('div', {}, [el('label', { class: 'form-label' }, 'Previsão de entrega'), inp('dataEntrega', 'date', '', edit.dataEntrega || '')]),
-  ]);
+  // Forma pag + banco
+  var pagRow = el('div', { style: { display: 'flex', gap: '8px' } });
+  pagRow.appendChild(el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Forma de pagamento'), mkSel('formaPagamento', _COMPRAS_FORMAS, edit.formaPagamento || 'Pix')]));
+  pagRow.appendChild(el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Conta debitada'), mkSel('banco', bancoOpts, edit.banco || '')]));
 
-  // Forma de pagamento + banco
-  var pagRow = el('div', { style: { display: 'flex', gap: '8px' } }, [
-    el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Forma de pagamento'), sel('formaPagamento', _COMPRAS_FORMAS, edit.formaPagamento || 'Pix')]),
-    el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Conta debitada'), sel('banco', bancoOpts, edit.banco || '')]),
-  ]);
+  // Status + NF
+  var compRow = el('div', { style: { display: 'flex', gap: '8px' } });
+  compRow.appendChild(el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Status'), mkSel('status', statusOpts, edit.status || 'pendente')]));
+  compRow.appendChild(el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'NF / Pedido'), mkInp('nf', 'text', 'Ex: NF 00123', edit.nf || '')]));
 
-  // Campo fornecedor: select + input livre
-  var fornRow = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'flex-start' } }, [
-    el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Fornecedor (cadastrado)'), sel('fornecedorId', fornOpts, edit.fornecedorId || '')]),
-    el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Ou nome livre'), inp('fornecedor', 'text', 'Ex: Atacadão, feira...', edit.fornecedor || '')]),
-  ]);
+  // Obs
+  var obsEl = el('textarea', { class: 'form-input', id: 'cm-obs', placeholder: 'Observações...', rows: '2' });
+  obsEl.value = edit.obs || '';
 
   var modal = div('modal', [
     div('modal-title', [
       el('span', {}, isEdit ? '✏️ Editar compra' : '🛒 Nova compra'),
       el('button', { class: 'modal-close', onclick: function() { setState({ compraModal: null }); } }, '×'),
     ]),
+    el('div', { style: { maxHeight: '72vh', overflowY: 'auto' } }, [
 
-    // Scroll interno
-    el('div', { style: { maxHeight: '72vh', overflowY: 'auto', paddingRight: '2px', display: 'flex', flexDirection: 'column', gap: '0' } }, [
-
-      // Bloco 1 — Identificação
-      el('div', { style: { padding: '14px 0 10px', borderBottom: '1px solid var(--border)', marginBottom: '12px' } }, [
-        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' } }, '📦 Item'),
-        fgroup('Nome do item / produto *', inp('item', 'text', 'Ex: Óleo de soja, Embalagem 500ml...', edit.item || '')),
-        fgroup('Categoria', sel('categoria', catOpts, edit.categoria || '')),
-        fornRow,
+      // Bloco item
+      el('div', { style: { borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '12px' } }, [
+        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '8px' } }, '📦 Item'),
+        fg('Nome do item *', mkInp('item', 'text', 'Ex: Óleo de soja, Embalagem...', edit.item || '')),
+        fg('Categoria', mkSel('categoria', catOpts, edit.categoria || '')),
+        el('div', { style: { display: 'flex', gap: '8px' } }, [
+          el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Fornecedor (cadastrado)'), mkSel('fornecedorId', fornOpts, edit.fornecedorId || '')]),
+          el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Ou nome livre'), mkInp('fornecedorNome', 'text', 'Ex: Atacadão...', edit.fornecedor || '')]),
+        ]),
       ]),
 
-      // Bloco 2 — Quantidade e valores
-      el('div', { style: { padding: '0 0 10px', borderBottom: '1px solid var(--border)', marginBottom: '12px' } }, [
-        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' } }, '📐 Quantidade e Valores'),
-        fgroup('Quantidade + Unidade', qtdUndRow),
+      // Bloco quantidade/valor
+      el('div', { style: { borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '12px' } }, [
+        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '8px' } }, '📐 Quantidade e Valores'),
+        fg('Quantidade + Unidade', qtdRow),
         precoRow,
       ]),
 
-      // Bloco 3 — Datas e pagamento
-      el('div', { style: { padding: '0 0 10px', borderBottom: '1px solid var(--border)', marginBottom: '12px' } }, [
-        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' } }, '📅 Datas e Pagamento'),
-        fgroup('Datas', datasRow),
+      // Bloco datas/pagamento
+      el('div', { style: { borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '12px' } }, [
+        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '8px' } }, '📅 Datas e Pagamento'),
+        fg('Datas', datasRow),
         pagRow,
       ]),
 
-      // Bloco 4 — Status e complementos
-      el('div', { style: { padding: '0 0 10px' } }, [
-        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' } }, '📋 Complemento'),
-        el('div', { style: { display: 'flex', gap: '8px' } }, [
-          el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Status'), sel('status', statusOpts, edit.status || 'pendente')]),
-          el('div', { style: { flex: '1' } }, [el('label', { class: 'form-label' }, 'Nº NF / Pedido'), inp('nf', 'text', 'Ex: NF 00123', edit.nf || '')]),
-        ]),
-        fgroup('Observações', txt('obs', 'Anotações sobre a compra...', edit.obs || '')),
+      // Bloco complemento
+      el('div', {}, [
+        el('div', { style: { fontSize: '11px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '8px' } }, '📋 Complemento'),
+        compRow,
+        fg('Observações', obsEl),
       ]),
-
     ]),
-
     div('modal-actions', [
       isEdit ? btn('btn-ghost', '🗑️ Excluir', excluir) : null,
       btn('btn-ghost', 'Cancelar', function() { setState({ compraModal: null }); }),
-      btn('btn-primary', isEdit ? '💾 Salvar' : '✅ Registrar compra', save),
+      btn('btn-primary', isEdit ? '💾 Salvar' : '✅ Registrar', save),
     ].filter(Boolean)),
   ]);
+  modal.style.maxWidth = '600px';
 
-  modal.style.maxWidth = '620px';
   var ov = div('modal-overlay', [modal]);
   ov.onclick = function(e) { if (e.target === ov) setState({ compraModal: null }); };
   return ov;
