@@ -261,7 +261,7 @@ function renderListaCompras() {
   var pct = items.length > 0 ? Math.round(comprados / items.length * 100) : 0;
 
   // ── Barra de progresso ────────────────────────────────────────────────────
-  var progressBar = div('card', { style: { marginBottom: '14px' } }, [
+  var progressBar = el('div', { class: 'card', style: { marginBottom: '14px' } }, [
     el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } }, [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, [
         el('span', { style: { fontSize: '16px', fontWeight: '700', color: 'var(--text)' } }, listaAtual.nome),
@@ -386,7 +386,7 @@ function renderListaCompras() {
     }));
   }
 
-  var card = div('card', { style: { padding: '0', overflow: 'hidden' } }, [listaEl]);
+  var card = el('div', { class: 'card', style: { padding: '0', overflow: 'hidden' } }, [listaEl]);
 
   // ── Footer actions ─────────────────────────────────────────────────────────
   var footerActions = el('div', { style: { display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' } }, [

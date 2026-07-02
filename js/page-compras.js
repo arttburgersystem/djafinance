@@ -128,7 +128,7 @@ function renderCompras() {
   ]);
 
   // ── Totais por categoria (mini gráfico) ───────────────────────────────────
-  var catBar = catArr.length > 0 ? div('card', { style: { marginBottom: '10px' } }, [
+  var catBar = catArr.length > 0 ? el('div', { class: 'card', style: { marginBottom: '10px' } }, [
     div('card-title', 'Top categorias — ' + _labelMes),
     el('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' } }, catArr.map(function(ct) {
       var pct = kpiTotal > 0 ? (ct.val / kpiTotal * 100).toFixed(1) : 0;
@@ -220,7 +220,7 @@ function renderCompras() {
     ? div('empty', [div('empty-icon', '🛒'), div('empty-title', 'Nenhuma compra encontrada'), div('empty-sub', 'Clique em "+ Nova compra" para registrar')])
     : el('div', {}, filtradas.map(renderLinha));
 
-  var lista = div('card', { style: { padding: '0', overflow: 'hidden' } }, [headerCols, listaEl]);
+  var lista = el('div', { class: 'card', style: { padding: '0', overflow: 'hidden' } }, [headerCols, listaEl]);
 
   return div('', [
     div('page-header', [
