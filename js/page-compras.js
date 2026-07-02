@@ -202,9 +202,19 @@ function renderCompras() {
       }
       row.appendChild(vencCol);
 
-      row.appendChild(el('div', { style: { textAlign: 'center', alignSelf: 'center' } }, [
-        el('span', { style: { fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px', color: stDef.cor, background: stDef.bg } }, stDef.label),
-      ]));
+      // Status + botão de entrada no estoque
+      var statusCol = el('div', { style: { textAlign: 'center', alignSelf: 'center', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' } });
+      statusCol.appendChild(el('span', { style: { fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px', color: stDef.cor, background: stDef.bg } }, stDef.label));
+      var entradaBtn = el('button', { title: 'Dar entrada no estoque' }, '📦');
+      entradaBtn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px 5px;font-size:11px;';
+      (function(cc) {
+        entradaBtn.onclick = function(e) {
+          e.stopPropagation();
+          setState({ estoqueMovModal: { insumoId: null, tipo: 'entrada', compraId: cc.id }, page: 'estoque-insumos', estoqueTab: 'movs' });
+        };
+      })(cCopy);
+      statusCol.appendChild(entradaBtn);
+      row.appendChild(statusCol);
 
       listaWrap.appendChild(row);
     });
